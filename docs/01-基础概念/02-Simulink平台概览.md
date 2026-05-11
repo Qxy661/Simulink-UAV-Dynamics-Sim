@@ -273,6 +273,27 @@ flowchart TD
 | Bus Creator | Simulink > Signal Routing | 信号打包 |
 | Subsystem | Simulink > Ports & Subsystems | 创建子系统 |
 
+**MATLAB 示例：Simulink 快速入门脚本**
+
+```matlab
+% Simulink 快速入门脚本
+% 1. 启动 Simulink
+simulink;
+
+% 2. 创建一个简单的正弦波示波器模型
+new_system('my_first_model');
+add_block('simulink/Sources/Sine Wave', 'my_first_model/Sine');
+add_block('simulink/Sinks/Scope', 'my_first_model/Scope');
+add_line('my_first_model', 'Sine/1', 'Scope/1');
+set_param('my_first_model', 'StopTime', '10');
+sim('my_first_model');
+
+% 3. 求解器选择指南
+% 固定步长: ode4 (Euler), ode1 (Euler) — 适合实时/代码生成
+% 可变步长: ode45 (Dormand-Prince), ode23tb — 适合仿真精度
+% 刚性系统: ode15s, ode23t — 适合电机/电调建模
+```
+
 ---
 
 ## 8. 许可与学术访问
