@@ -160,6 +160,59 @@ Simulink > Continuous > PID Controller
 4. 设置仿真时间和求解器（推荐 ode45 或固定步长 ode4）
 5. 运行仿真，观察 Scope 中的响应曲线
 
+### 5.3 MATLAB 脚本：自动创建 Simulink PID 位置控制模型
+
+以下脚本可直接在 MATLAB 命令窗口运行，自动搭建一个简单的 PID 位置控制 Simulink 模型：
+
+```matlab
+%% create_pid_position_model.m  —— 自动创建 PID 位置控制 Simulink 模型
+%  运行前请确保已安装 Simulink
+
+modelName = 'pid_position_control';
+
+% ---- 如果模型已打开，先关闭 ----
+if bdIsLoaded(modelName)
+    close_system(modelName, 0);
+end
+new_system(modelName);
+open_system(modelName);
+
+% ---- 添加模块 ----
+add_block('simulink/Sources/Step',           [modelName '/Reference'], ...
+    'Time', '1', 'After', '1', 'SampleTime', '0');
+add_block('simulink/Continuous/PID Controller', [modelName '/PID'], ...
+    'P', '10', 'I', '5', 'D', '2', 'N', '100');
+add_block('simulink/Continuous/Transfer Fcn',   [modelName '/Plant'], ...
+    'Numerator', '[1]', 'Denominator', '[1 2 1]');
+add_block('simulink/Sinks/Scope',            [modelName '/Scope']);
+add_block('simulink/Math Operations/Sum',    [modelName '/Sum'], ...
+    'Inputs', '+-');
+
+% ---- 连接信号线 ----
+% Reference → Sum(+)
+add_line(modelName, 'Reference/1', 'Sum/1');
+% Sum → PID
+add_line(modelName, 'Sum/1',     'PID/1');
+% PID → Plant
+add_line(modelName, 'PID/1',     'Plant/1');
+% Plant → Scope
+add_line(modelName, 'Plant/1',   'Scope/1');
+% Plant → Sum(-)  (反馈)
+add_line(modelName, 'Plant/1',   'Sum/2');
+
+% ---- 设置仿真参数 ----
+set_param(modelName, 'StopTime', '10');
+set_param(modelName, 'Solver',   'ode45');
+
+% ---- 保存并运行 ----
+save_system(modelName);
+sim(modelName);
+
+disp('模型已创建、仿真完成。打开 Scope 查看响应曲线。');
+```
+
+> **运行说明**：将此脚本保存为 `create_pid_position_model.m` 并执行。脚本会自动创建名为 `pid_position_control` 的 Simulink 模型，包含阶跃参考信号、PID 控制器、二阶传递函数被控对象和 Scope 显示。运行后双击 Scope 模块即可查看阶跃响应。可在此基础上修改 PID 参数或被控对象传递函数进行进一步实验。
+
 ---
 
 ## 6. Ziegler-Nichols 整定方法
@@ -337,7 +390,7 @@ Simulink 提供了 **PID Autotuner** 模块，可自动整定 PID 参数。
 
 ## 12. PID 在无人机中的应用示例
 
-以四旋翼俯仰角控制为例：
+以四旋翼俯仰角控制为例（完整的级联 PID 架构详见 [级联PID姿态控制](02-级联PID姿态控制.md)）：
 
 ```
 参考俯仰角 ──► PID Controller ──► 电机混控 ──► 四旋翼动力学 ──► 实际俯仰角

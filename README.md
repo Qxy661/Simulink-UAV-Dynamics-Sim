@@ -193,6 +193,17 @@ init_project
 open_system('models/quadrotor_basic.slx')
 ```
 
+## 相关项目
+
+本项目是 [Qxy661](https://github.com/Qxy661) 无人机教学文档系列之一，以下项目可作为延伸学习资源：
+
+| 项目 | 说明 | GitHub |
+|------|------|--------|
+| UAV-Control-Theory | 飞行控制理论（PID/ADRC/MPC/SMC/几何控制等） | [Qxy661/UAV-Control-Theory](https://github.com/Qxy661/UAV-Control-Theory) |
+| RL-Autonomous-Flight | 强化学习自主飞行（PPO/SAC/DDPG/环境/迁移） | [Qxy661/RL-Autonomous-Flight](https://github.com/Qxy661/RL-Autonomous-Flight) |
+| UAV-Comm-DataLink | 无人机通信与数据链（MAVLink/数传/4G-5G/地面站） | [Qxy661/UAV-Comm-DataLink](https://github.com/Qxy661/UAV-Comm-DataLink) |
+| LLM-Driven-UAV | LLM驱动的无人机系统（VLA/VLM/语音/Agent） | [Qxy661/LLM-Driven-UAV](https://github.com/Qxy661/LLM-Driven-UAV) |
+
 ## 贡献指南
 
 欢迎社区贡献！无论是修正错别字、补充内容，还是添加新的章节，我们都十分感谢。
