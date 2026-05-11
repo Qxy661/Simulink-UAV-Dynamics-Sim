@@ -82,8 +82,9 @@ graph TD
 | 08 | 状态估计与传感器融合 | 卡尔曼滤波、扩展卡尔曼滤波、IMU/GPS 融合 | 3 小时 |
 | 09 | 强化学习与自适应控制 | SAC/PPO 算法、Simulink RL Toolbox 集成、自适应 PID | 3.5 小时 |
 | 10 | 容错控制与故障诊断 | 故障建模、鲁棒控制、控制分配重构 | 3 小时 |
+| 11 | PX4 飞控系统对接 | PX4 架构、Simulink 控制链路、SITL 联合仿真、自定义模块开发、日志分析与调参 | 6 小时 |
 
-> **总计约 29 小时**，建议按章节顺序学习，每章配合动手实操巩固理解。
+> **总计约 35 小时**，建议按章节顺序学习，每章配合动手实操巩固理解。
 
 ## 精选开源仓库参考
 
@@ -130,8 +131,10 @@ graph TD
 
 | 仓库 | Stars | 说明 |
 |------|:-----:|------|
-| [MichaelSkadan/PX4-Autopilot-Simulink-Interface](https://github.com/MichaelSkadan/PX4-Autopilot-Simulink-Interface) | 39 | PX4 自驾仪与 Simulink 接口集成 |
-| [optimAero/optimAeroPX4SIL](https://github.com/optimAero/optimAeroPX4SIL) | 19 | PX4 软件在环仿真优化工具 |
+| [MichaelSkadan/PX4-Autopilot-Simulink-Interface](https://github.com/MichaelSkadan/PX4-Autopilot-Simulink-Interface) | 39 | PX4 自驾仪与 Simulink 接口集成的完整示例，含 MAVLink 通信与控制器对接参考 |
+| [optimAero/optimAeroPX4SIL](https://github.com/optimAero/optimAeroPX4SIL) | 19 | PX4 SITL 优化工具，提供高效的 Simulink-PX4 联合仿真方案与 UDP 桥接 |
+
+> **推荐阅读**：第 11 章 [PX4 飞控系统对接](docs/11-PX4飞控系统对接/) 包含 5 篇详细教程，系统讲解 PX4 架构、Simulink 控制链路、SITL 联合仿真、自定义模块开发及日志调参方法。
 
 ### 强化学习控制 (RL-Based Control)
 
