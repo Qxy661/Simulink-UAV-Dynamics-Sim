@@ -1,0 +1,44 @@
+Panels:
+  - Class: rviz/Displays
+    Name: Displays
+  - Class: rviz/Views
+    Name: Views
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz/Grid
+      Name: Grid
+      Plane Cell Count: 20
+      Reference Frame: map
+    - Class: rviz/TF
+      Name: TF
+      Frame Timeout: 15
+      Marker Scale: 1
+    - Class: rviz/Pose
+      Name: QuadPose
+      Topic: /quad/pose
+      Color: 255, 85, 0
+      Arrow Length: 0.5
+      Axes Length: 0.3
+    - Class: rviz/Imu
+      Name: QuadIMU
+      Topic: /quad/imuData
+      Orientation Color: 255, 85, 0
+      Position Color: 255, 0, 255
+      Accent Color: 0, 255, 0
+    - Class: rviz/RobotModel
+      Name: RobotModel
+      Visual Enabled: false
+  Global Options:
+    Fixed Frame: map
+    Frame Rate: 30
+  Views:
+    Current:
+      Class: rviz/Orbit
+      Distance: 10
+      Focal Point: [0, 0, 0]
+      Pitch: 0.4
+      Yaw: 0.8
+Window Geometry:
+  Width: 1200
+  Height: 800

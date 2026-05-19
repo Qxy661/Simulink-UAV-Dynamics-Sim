@@ -14,6 +14,7 @@
 | 3 | [ethz-asl/euroc_dataset_tools](https://github.com/ethz-asl/euroc_dataset_tools) | 300+ | EuRoC 数据集工具 | MAV 数据集, 真值对比, 评估工具 | 评估状态估计算法 | 入门 |
 | 4 | [uzh-rpg/rpg_quadrotor_control](https://github.com/uzh-rpg/rpg_quadrotor_control) | 1.2k+ | UZH 四旋翼控制 | SE(3)控制, 最小snap轨迹, ROS | 学习几何控制器 | 高级 |
 | 5 | [ethz-asl/ethzasl_quadrotor_sim](https://github.com/ethz-asl/ethzasl_quadrotor_sim) | 200+ | ETH 四旋翼仿真 | 完整动力学模型, 积分方法对比 | 理解数值积分对仿真的影响 | 入门 |
+| 6 | [JJJJJJJack/multiModeQuad_ROS](https://github.com/JJJJJJJack/multiModeQuad_ROS) | 1 | Simulink 生成的多模式四旋翼 ROS 节点 | 多控制模式切换, 多机扩展, Simulink→ROS 自动生成 | 学习 MBD 开发流程与多机架构 | 进阶 |
 
 ---
 

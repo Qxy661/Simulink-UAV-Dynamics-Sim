@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<launch>
+  <!--
+    single_quad.launch - 单四旋翼启动文件
+    用法: roslaunch multimodequad_ros single_quad.launch
+    可选参数:
+      namespace: 节点命名空间 (默认: quad)
+      init_x/y/z: 初始位置 (默认: 0, 0, 0)
+      rviz: 是否启动 RVIZ (默认: false)
+  -->
+
+  <!-- 可配置参数 -->
+  <arg name="namespace" default="quad"/>
+  <arg name="init_x"    default="0.0"/>
+  <arg name="init_y"    default="0.0"/>
+  <arg name="init_z"    default="0.0"/>
+  <arg name="rviz"      default="false"/>
+
+  <!-- 四旋翼节点 -->
+  <node name="$(arg namespace)" pkg="multimodequad_ros"
+        type="multimodequad_ros" respawn="true" output="screen">
+    <param name="init_pose_x" value="$(arg init_x)"/>
+    <param name="init_pose_y" value="$(arg init_y)"/>
+    <param name="init_pose_z" value="$(arg init_z)"/>
+  </node>
+
+  <!-- RVIZ 可视化 (可选) -->
+  <group if="$(arg rviz)">
+    <node name="rviz" pkg="rviz" type="rviz"
+          args="-d $(find multimodequad_ros)/config/quad_rviz.rviz"/>
+  </group>
+</launch>

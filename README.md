@@ -97,6 +97,7 @@ graph TD
 | [dch33/Quad-Sim](https://github.com/dch33/Quad-Sim) | 289 | 经典四旋翼 Simulink 仿真库，含完整建模与控制 |
 | [EwingKang/QuadCopter-Quaternion-Dynamics-in-Simulink](https://github.com/EwingKang/QuadCopter-Quaternion-Dynamics-in-Simulink) | 49 | 基于四元数的四旋翼动力学 Simulink 实现 |
 | [AngeloEspinoza/quadrotor-model-and-control](https://github.com/AngeloEspinoza/quadrotor-model-and-control) | 40 | 四旋翼建模与多种控制策略对比 |
+| [JJJJJJJack/multiModeQuad_ROS](https://github.com/JJJJJJJack/multiModeQuad_ROS) | 1 | Simulink 生成的多模式四旋翼 ROS 节点，支持多种控制模式与多机扩展 |
 
 ### 固定翼无人机 (Fixed-Wing)
 

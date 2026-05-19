@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<launch>
+  <!--
+    multi_quad.launch - 多四旋翼启动文件 (可配置数量)
+    用法: roslaunch multimodequad_ros multi_quad.launch
+    可选参数:
+      count: 四旋翼数量 (默认: 4)
+      prefix: 命名空间前缀 (默认: quad)
+      rviz: 是否启动 RVIZ (默认: false)
+  -->
+
+  <arg name="count"  default="4"/>
+  <arg name="prefix" default="quad"/>
+  <arg name="rviz"   default="false"/>
+
+  <!-- 循环生成 count 个四旋翼节点 -->
+  <!-- quad_1: (0, 0, 0), quad_2: (2, 2, 0), quad_3: (4, 0, 0), quad_4: (6, 2, 0) -->
+  <node name="$(arg prefix)_1" pkg="multimodequad_ros"
+        type="multimodequad_ros" respawn="true" output="screen">
+    <param name="init_pose_x" value="0.0"/>
+    <param name="init_pose_y" value="0.0"/>
+    <param name="init_pose_z" value="0.0"/>
+  </node>
+
+  <node name="$(arg prefix)_2" pkg="multimodequad_ros"
+        type="multimodequad_ros" respawn="true" output="screen">
+    <param name="init_pose_x" value="2.0"/>
+    <param name="init_pose_y" value="2.0"/>
+    <param name="init_pose_z" value="0.0"/>
+  </node>
+
+  <node name="$(arg prefix)_3" pkg="multimodequad_ros"
+        type="multimodequad_ros" respawn="true" output="screen">
+    <param name="init_pose_x" value="4.0"/>
+    <param name="init_pose_y" value="0.0"/>
+    <param name="init_pose_z" value="0.0"/>
+  </node>
+
+  <node name="$(arg prefix)_4" pkg="multimodequad_ros"
+        type="multimodequad_ros" respawn="true" output="screen">
+    <param name="init_pose_x" value="6.0"/>
+    <param name="init_pose_y" value="2.0"/>
+    <param name="init_pose_z" value="0.0"/>
+  </node>
+
+  <!-- 启动 tf 发布 (将 pose 转换为 tf) -->
+  <node name="quad_to_tf" pkg="tf" type="static_transform_publisher"
+        args="0 0 0 0 0 0 map quad_1/base_link 100"/>
+
+  <!-- RVIZ 可视化 -->
+  <group if="$(arg rviz)">
+    <node name="rviz" pkg="rviz" type="rviz"
+          args="-d $(find multimodequad_ros)/config/multi_quad_rviz.rviz"/>
+  </group>
+</launch>
