@@ -75,6 +75,7 @@ codegen/       生成的 C 源码（入库，可脱离 MATLAB 编译）
 c/             独立运行器、Makefile、参考序列
 docs/          架构、验证、控制器基准
 models/        生成的 .slx
+tutorials/     11 个部分的理论教程（约 1 MB）
 figures/       演示图
 ```
 
@@ -106,6 +107,9 @@ x = [pn; pe; pd; u; v; w; qw; qx; qy; qz; p; q; r]
 
 完整推导与符号见 [docs/architecture.md](docs/architecture.md)，固定翼单独一份 [docs/fixedwing.md](docs/fixedwing.md)，倾转四旋翼见 [docs/tiltrotor.md](docs/tiltrotor.md)，C 代码生成见 [docs/codegen.md](docs/codegen.md)，测试数值见 [docs/validation.md](docs/validation.md)。
 
+## 教程
+`tutorials/` 是 11 个部分的理论教程：坐标系与动力学推导、Simulink 建模、PID/LQR/MPC、状态估计、VTOL 与风扰、SIL/HIL、PX4 对接、论文导读。
+和代码对应的读法：02 解释 `+uav/+plant/rigid_body.m`，04 解释 `+uav/+ctrl/cascade.m` 的姿态反解，06 解释固定翼与倾转构型。章节索引见 [tutorials/README.md](tutorials/README.md)。
 ## 设计取舍
 
 **参数用函数返回 struct，不用脚本。** 旧版把 `quad_params.m` 当脚本执行，函数里静态解析看不到 `quad` 变量，会落到内置 `quad.m` 上，报“输入参数的数目不足”。现在 `uav.cfg.quad()` 返回结构体，调用处类型明确。
