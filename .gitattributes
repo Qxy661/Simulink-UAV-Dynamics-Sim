@@ -1,0 +1,12 @@
+# 生成的 C 与参考序列按文本处理，Simulink 模型按二进制处理
+* text=auto
+*.m       text eol=lf
+*.c       text eol=lf
+*.h       text eol=lf
+*.md      text eol=lf
+*.csv     text eol=lf
+*.slx     binary
+*.mat     binary
+*.png     binary
+*.gif     binary
+*.zip     binary
