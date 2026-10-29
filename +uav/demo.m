@@ -4,6 +4,7 @@ function out = demo(caseName)
 %   uav.demo('step')    四旋翼位置阶跃（默认）
 %   uav.demo('yaw')     四旋翼航向阶跃
 %   uav.demo('fw')      固定翼爬升-转弯-加速任务
+%   uav.demo('tilt')    倾转四旋翼悬停-转捩-巡航
 
 if nargin < 1
     caseName = 'step';
@@ -11,6 +12,11 @@ end
 
 if strcmpi(caseName, 'fw')
     out = fw_demo();
+    return
+end
+
+if strcmpi(caseName, 'tilt')
+    out = tilt_demo();
     return
 end
 
@@ -132,4 +138,59 @@ title('舵面');
 
 saveas(f, fullfile(figDir, 'demo_fw.png'));
 fprintf('图已保存 %s\n', fullfile(figDir, 'demo_fw.png'));
+end
+
+function out = tilt_demo()
+p = uav.cfg.tilt();
+c = uav.cfg.tiltctrl();
+s = uav.cfg.simcfg();
+s.tEnd = 45;
+ref = @uav.env.tilt_ref;
+out = uav.sim.run_tilt(p, c, s, ref);
+
+h   = -out.p(:,3);
+V   = vecnorm(out.v, 2, 2);
+bt  = rad2deg(out.beta);
+th  = rad2deg(out.eul(:,2));
+ep  = vecnorm(out.p - out.ref(:,1:3), 2, 2);
+
+fprintf('\n== tilt ==\n');
+fprintf('末端高度 %.2f m，末端空速 %.2f m/s，短舱 %.1f deg\n', h(end), V(end), bt(end));
+fprintf('高度偏差 max %.2f m，水平误差 max %.2f m（末段 %.2f m）\n', ...
+    max(abs(h - p.htrim)), max(ep(round(end*0.3):end)), ep(end));
+fprintf('短舱范围 %.1f .. %.1f deg，俯仰 %.1f .. %.1f deg\n', min(bt), max(bt), min(th), max(th));
+
+root = fileparts(fileparts(mfilename('fullpath')));
+figDir = fullfile(root, 'figures');
+if ~isfolder(figDir)
+    mkdir(figDir);
+end
+
+f = figure('Color', 'w', 'Position', [100 100 900 640]);
+
+subplot(2,2,1);
+plot(out.t, h - p.htrim, 'b'); grid on; ylim([-1 1]);
+yline(0, 'r--');
+xlabel('t (s)'); ylabel('高度偏差 (m)'); title('高度保持');
+
+subplot(2,2,2);
+plot(out.t, V, 'b', out.t, out.ref(:,6), 'r--'); grid on
+xlabel('t (s)'); ylabel('空速 (m/s)'); title('空速跟踪');
+legend('实际', '参考', 'Location', 'best');
+
+subplot(2,2,3);
+yyaxis left
+plot(out.t, bt, 'b'); ylabel('短舱角 \beta (deg)');
+yyaxis right
+plot(out.t, th, 'r'); ylabel('俯仰 \theta (deg)');
+grid on; xlabel('t (s)'); title('短舱倾转与姿态');
+
+subplot(2,2,4);
+plot(out.t, out.om, 'LineWidth', 1); grid on
+xlabel('t (s)'); ylabel('\omega (rad/s)');
+legend('\omega_1', '\omega_2', '\omega_3', '\omega_4', 'Location', 'best');
+title('旋翼转速');
+
+saveas(f, fullfile(figDir, 'demo_tilt.png'));
+fprintf('图已保存 %s\n', fullfile(figDir, 'demo_tilt.png'));
 end

@@ -120,6 +120,12 @@ M    = KpAtt.*eAtt + KiAtt.*ia - KdAtt.*w      % 限幅 [3;3;1.5] N*m
 
 气动模型、配平与控制器单独写在 [fixedwing.md](fixedwing.md)。与四旋翼共用同一个 13 维状态、刚体方程与积分器，区别只在力和力矩的来源，以及控制量变成 `[throttle; de; da; dr]`。
 
+## 倾转四旋翼
+
+四个旋翼装在机翼上，短舱绕机体 y 轴转，β=0 推力朝上、β=90° 朝前。状态扩成 21 维：13 维刚体 + β + 4 转速 + 3 舵面。物理推导、调度与包线单独写在 [tiltrotor.md](tiltrotor.md)。
+
+与另外两个构型的关系：刚体方程、四元数工具、气动模型（`fw_aero`）完全复用，只是叠加旋翼力 `d(β)·U1` 与力偶。控制器仍是位置环 + 姿态环，区别在姿态指令按空速权重在"四旋翼支"与"固定翼支"之间混合，力矩按同一权重在旋翼与舵面之间分配。
+
 ## 积分
 
 脚本用定步长 RK4，步长 1 ms。控制器每 `ctrlDiv` 步更新一次，中间保持零阶保持。执行机构（电机、舵机、油门）在积分之前按本步指令更新，整步内视为常值；记录也在积分之前取，和 Simulink 积分器输出的对齐方式一致。每步结束后四元数归一化。
@@ -179,3 +185,13 @@ Step/Psi -> RefMux -> Ctrl -> TM -> Mixer -> Motors -> Wrench
 | `+uav/+env/fw_ref.m` | 固定翼任务参考（纯函数） |
 | `+uav/+env/fw_mission.m` | 固定翼任务参考句柄 |
 | `+uav/+sim/run_fw.m` | 固定翼 RK4 闭环仿真 |
+| `+uav/+cfg/tilt.m` | 倾转四旋翼机体、旋翼、气动、调度参数 |
+| `+uav/+cfg/tiltctrl.m` | 倾转四旋翼控制器增益 |
+| `+uav/+plant/tilt_wrench.m` | 旋翼力 `d(β)·U1` 与力偶，叠加气动 |
+| `+uav/+plant/tilt_mix.m` | 虚拟控制量到四个转速 |
+| `+uav/+ctrl/tilt_schedule.m` | 参考空速到机翼权重 k 与短舱角 β |
+| `+uav/+ctrl/tilt_alloc.m` | 力矩在旋翼与舵面之间按 k 分配 |
+| `+uav/+ctrl/tilt_cascade.m` | 倾转四旋翼级联控制（姿态混合） |
+| `+uav/+env/tilt_ref.m` | 倾转任务参考（悬停-转捩-巡航） |
+| `+uav/+env/tilt_ref_v.m` | 参数化参考，用于包线扫描 |
+| `+uav/+sim/run_tilt.m` | 21 维状态 RK4 闭环仿真 |

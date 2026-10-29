@@ -1,6 +1,6 @@
 # 无人机 Simulink 仿真框架
 
-一套可运行的无人机闭环仿真代码：MATLAB 包做数值实现，Simulink 模型做结构验证，两者独立编写同一组方程，互相对拍。目前包含四旋翼与固定翼两个构型。
+一套可运行的无人机闭环仿真代码：MATLAB 包做数值实现，Simulink 模型做结构验证，两者独立编写同一组方程，互相对拍。目前包含四旋翼、固定翼、倾转四旋翼三个构型。
 
 不是教程仓库，也不包含论文。代码能跑，测试能过，数值能复现。
 
@@ -8,9 +8,10 @@
 
 | 项目 | 结果 |
 | --- | --- |
-| 单元与闭环测试 | 38 项全部通过 |
+| 单元与闭环测试 | 49 项全部通过 |
 | 四旋翼位置阶跃 | 末端误差 0.003 m，最大倾角 30.5° |
 | 固定翼任务 | 爬升 30 m、转弯 60°、加速到 22 m/s，终点高度 130.01 m、航向 60.0°、空速 22.02 m/s |
+| 倾转四旋翼过渡 | β 0→57.3°、空速 0→9.99 m/s，高度偏差 0.33 m，水平误差末段 1.08 m |
 | Simulink 对拍 | 四旋翼 14 s 最大偏差 1.1e-15，固定翼 60 s 最大偏差 1.3e-12 |
 | Simulink 版本 | R2024a，只用基础模块与 MATLAB Function |
 
@@ -22,6 +23,7 @@ uav.demo('step');          % 四旋翼位置阶跃，出图到 figures/
 uav.demo('hover');         % 四旋翼定点悬停
 uav.demo('yaw');           % 四旋翼航向阶跃
 uav.demo('fw');            % 固定翼爬升-转弯-加速
+uav.demo('tilt');          % 倾转四旋翼悬停-转捩-巡航
 ```
 
 跑测试：
@@ -44,11 +46,11 @@ validate_fw_model
 
 ```
 +uav/
-  +cfg/        参数：四旋翼机体、四旋翼控制器、固定翼机体、固定翼控制器、仿真设置
-  +plant/      刚体六自由度、四旋翼混控与电机、固定翼气动与配平、四元数工具
-  +ctrl/       四旋翼级联控制器、固定翼级联控制器、角度归一化
-  +env/        四旋翼悬停与阶跃参考、固定翼任务参考
-  +sim/        两个构型的积分器、指标统计
+  +cfg/        参数：四旋翼机体、四旋翼控制器、固定翼机体、固定翼控制器、倾转四旋翼机体/控制器、仿真设置
+  +plant/      刚体六自由度、四旋翼混控与电机、固定翼气动与配平、倾转四旋翼力与力矩、四元数工具
+  +ctrl/       四旋翼级联控制器、固定翼级联控制器、倾转调度与分配、角度归一化
+  +env/        四旋翼悬停与阶跃参考、固定翼任务参考、倾转任务参考
+  +sim/        三个构型的积分器、指标统计
   +model/      Simulink 图表源码生成器
   demo.m       演示入口
 tests/         matlab.unittest 测试
@@ -71,8 +73,9 @@ x = [pn; pe; pd; u; v; w; qw; qx; qy; qz; p; q; r]
 - 四旋翼电机编号：1 右前、2 右后、3 左后、4 左前。1/3 逆时针，2/4 顺时针，`a = arm/sqrt(2)`。
 - 四旋翼混控矩阵 `B` 把转速平方映射到 `[T; Mx; My; Mz]`，控制器用 `inv(B)`。
 - 固定翼配平变量为迎角 `alpha`、升降舵 `de`、油门 `thr`，平飞时俯仰角等于迎角。
+- 倾转四旋翼状态 21 维：13 维刚体 + 短舱角 + 4 转速 + 3 舵面，β=0 推力朝上、β=90° 朝前。
 
-完整推导与符号见 [docs/architecture.md](docs/architecture.md)，固定翼单独一份 [docs/fixedwing.md](docs/fixedwing.md)，测试数值见 [docs/validation.md](docs/validation.md)。
+完整推导与符号见 [docs/architecture.md](docs/architecture.md)，固定翼单独一份 [docs/fixedwing.md](docs/fixedwing.md)，倾转四旋翼见 [docs/tiltrotor.md](docs/tiltrotor.md)，测试数值见 [docs/validation.md](docs/validation.md)。
 
 ## 设计取舍
 
@@ -91,18 +94,20 @@ x = [pn; pe; pd; u; v; w; qw; qx; qy; qz; p; q; r]
 - 气动只有线性系数：四旋翼是机体轴阻力，固定翼是线性升阻与三轴力矩导数，没有失速、非定常、桨叶挥舞、地面效应、风场。
 - 电机与舵机都是一阶惯性加限幅，没有电流环、没有间隙与死区。
 - 固定翼控制器在 18 m/s 平飞点整定，大迎角或低速段未做增益调度。
+- 倾转四旋翼只做通稳的过渡段：稳定走廊到 β=57°、空速 10 m/s，减速回悬停与 β=90° 全转换未打通，见 [docs/tiltrotor.md](docs/tiltrotor.md)。
 - 未做完整 SO(3) 大角度机动，姿态误差仍按欧拉角计算。
 
 ## English
 
-A runnable UAV simulation framework with a quadrotor and a fixed-wing model: a MATLAB package for numerics and Simulink models for structural verification, written independently from the same equations and cross-checked against each other.
+A runnable UAV simulation framework with quadrotor, fixed-wing and tilt-rotor models: a MATLAB package for numerics and Simulink models for structural verification, written independently from the same equations and cross-checked against each other.
 
-38 tests pass. The quadrotor position step settles within 3 mm. The fixed-wing mission climbs 30 m, turns 60 degrees and accelerates to 22 m/s, settling at 130.01 m, 60.0 degrees and 22.02 m/s. Simulink models agree with the MATLAB implementation to 1.1e-15 (quadrotor, 14 s) and 1.3e-12 (fixed wing, 60 s).
+49 tests pass. The quadrotor position step settles within 3 mm. The fixed-wing mission climbs 30 m, turns 60 degrees and accelerates to 22 m/s, settling at 130.01 m, 60.0 degrees and 22.02 m/s. The tilt-rotor transitions from hover to 10 m/s with the nacelles at 57.3 degrees, holding altitude within 0.33 m. Simulink models agree with the MATLAB implementation to 1.1e-15 (quadrotor, 14 s) and 1.3e-12 (fixed wing, 60 s).
 
 ```matlab
 addpath('/path/to/drone-simulink');
 uav.demo('step');
 uav.demo('fw');
+uav.demo('tilt');
 runtests('tests');
 ```
 

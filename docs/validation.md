@@ -4,7 +4,7 @@
 
 ```matlab
 addpath('E:\path\to\drone-simulink');
-runtests('tests')            % 38 项，约 19 s
+runtests('tests')            % 49 项，约 37 s
 cd scripts
 build_quad_model
 validate_model
@@ -16,7 +16,7 @@ uav.demo('fw')
 
 ## 测试清单
 
-`runtests('tests')` 共 38 项：`tPlant` 13 项、`tController` 7 项、`tClosedLoop` 5 项、`tFixedWing` 13 项。全部通过，总耗时 19.3 s。
+`runtests('tests')` 共 49 项：`tPlant` 13 项、`tController` 7 项、`tClosedLoop` 5 项、`tFixedWing` 13 项、`tTilt` 11 项。全部通过，总耗时 36.9 s。
 
 ### tPlant（13，四旋翼）
 
@@ -76,6 +76,22 @@ uav.demo('fw')
 | quaternionStaysNormalized | 12 s 全程四元数范数偏差小于 1e-12 |
 | repeatedRunIsIdentical | 同一输入跑两次，结果逐位相同 |
 
+### tTilt（11，倾转四旋翼）
+
+| 测试 | 断言内容 |
+| --- | --- |
+| hoverIsEquilibrium | 悬停转速、β=0 代回刚体方程，加速度小于 1e-9，角加速度小于 1e-12 |
+| mixRoundTrip | U → 转速 → 反解 U，往返相对误差小于 1e-10 |
+| betaZeroGivesQuadRoll | β=0 时左右差动给出大于 1 N·m 滚转；β=90° 时该通道小于其 1/10 |
+| yawMomentFromReactionTorque | 1/3 快、2/4 慢时偏航力矩为正 |
+| betaScheduleIsMonotone | 空速 3→14 m/s 扫描，β 单调不减，两端等于 βmin/βmax |
+| rotorTakesAllAtLowSpeed | k=0 时舵面份额为 0，转速接管配平 |
+| surfaceTakesOverAtHighSpeed | k=1、qbar=200 时副翼偏角大于 1e-3 rad |
+| missionHoldsAltitude | 45 s 任务高度偏差小于 1 m |
+| missionReachesCruiseTilt | β 超过 50°，末端空速大于 9.5 m/s，俯仰不超过 20° |
+| missionTracksReference | 末端水平误差小于 2 m |
+| repeatedRunIsIdentical | 同一输入跑两次，21 维状态逐位相同 |
+
 ## 演示结果
 
 `uav.demo` 三个四旋翼案例的实测输出：
@@ -96,6 +112,18 @@ hover 的 3 cm 误差来自 1 m 高度爬升后的稳态偏差，垂向积分项
 | 高度范围 | 100.0 – 130.1 m |
 | 空速范围 | 16.1 – 22.4 m/s |
 | 最大舵偏 | 升降舵 14.6°，副翼 15.1°，方向舵 2.4° |
+
+倾转四旋翼 `uav.demo('tilt')`：
+
+| 量 | 结果 |
+| --- | --- |
+| 末端高度 / 空速 / 短舱 | 20.00 m / 9.99 m/s / 57.3° |
+| 高度偏差 | max 0.33 m |
+| 水平误差 | 过渡段 max 3.68 m，末段 1.08 m |
+| 俯仰范围 | −7.8° – +5.8° |
+| 转速峰值 | 878 rad/s，无饱和 |
+
+包线（同任务换巡航速度，40 s）：8 m/s 高度偏差 0.50 m、10 m/s 0.33 m、12 m/s 15.61 m、14 m/s 126.26 m、16 m/s 发散。12 m/s 以上机翼升力不足以补旋翼竖直分量的缺口，属于配置边界。细节见 [tiltrotor.md](tiltrotor.md)。
 
 ## 脚本与 Simulink 对拍
 
