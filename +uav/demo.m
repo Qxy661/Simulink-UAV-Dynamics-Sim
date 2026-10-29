@@ -1,11 +1,17 @@
 function out = demo(caseName)
 %DEMO  运行内置演示并出图。
-%   uav.demo('hover')   定点悬停
-%   uav.demo('step')    位置阶跃（默认）
-%   uav.demo('yaw')     航向阶跃
+%   uav.demo('hover')   四旋翼定点悬停
+%   uav.demo('step')    四旋翼位置阶跃（默认）
+%   uav.demo('yaw')     四旋翼航向阶跃
+%   uav.demo('fw')      固定翼爬升-转弯-加速任务
 
 if nargin < 1
     caseName = 'step';
+end
+
+if strcmpi(caseName, 'fw')
+    out = fw_demo();
+    return
 end
 
 p = uav.cfg.quad();
@@ -74,4 +80,56 @@ title('转速');
 
 saveas(f, fullfile(figDir, ['demo_' caseName '.png']));
 fprintf('图已保存 %s\n', fullfile(figDir, ['demo_' caseName '.png']));
+end
+
+function out = fw_demo()
+p = uav.cfg.fw();
+c = uav.cfg.fwctrl();
+s = uav.cfg.simcfg();
+s.tEnd = 60;
+ref = uav.env.fw_mission(p.htrim, p.Vtrim);
+out = uav.sim.run_fw(p, c, s, ref);
+
+h = -out.p(:, 3);
+V = vecnorm(out.v, 2, 2);
+psi = rad2deg(uav.ctrl.wrap_pi(out.eul(:, 3)));
+
+fprintf('\n== fw ==\n');
+fprintf('末端高度  %.2f m，末端空速 %.2f m/s，末端航向 %.1f deg\n', ...
+    h(end), V(end), psi(end));
+fprintf('高度范围  %.1f .. %.1f m\n', min(h), max(h));
+fprintf('空速范围  %.1f .. %.1f m/s\n', min(V), max(V));
+
+root = fileparts(fileparts(mfilename('fullpath')));
+figDir = fullfile(root, 'figures');
+if ~isfolder(figDir)
+    mkdir(figDir);
+end
+
+f = figure('Color', 'w', 'Position', [100 100 900 640]);
+
+subplot(2,2,1);
+plot(out.t, h, 'b', out.t, out.ref(:,1), 'r--'); grid on
+xlabel('t (s)'); ylabel('高度 (m)'); title('高度跟踪');
+legend('实际', '参考', 'Location', 'best');
+
+subplot(2,2,2);
+plot(out.t, V, 'b', out.t, out.ref(:,3), 'r--'); grid on
+xlabel('t (s)'); ylabel('空速 (m/s)'); title('空速跟踪');
+legend('实际', '参考', 'Location', 'best');
+
+subplot(2,2,3);
+plot(out.t, psi, 'b', out.t, rad2deg(out.ref(:,2)), 'r--'); grid on
+xlabel('t (s)'); ylabel('航向 (deg)'); title('航向跟踪');
+legend('实际', '参考', 'Location', 'best');
+
+subplot(2,2,4);
+plot(out.t, rad2deg(out.act(:,2)), out.t, rad2deg(out.act(:,3)), ...
+     out.t, rad2deg(out.act(:,4)), 'LineWidth', 1); grid on
+xlabel('t (s)'); ylabel('舵面偏角 (deg)');
+legend('\delta_e', '\delta_a', '\delta_r', 'Location', 'best');
+title('舵面');
+
+saveas(f, fullfile(figDir, 'demo_fw.png'));
+fprintf('图已保存 %s\n', fullfile(figDir, 'demo_fw.png'));
 end

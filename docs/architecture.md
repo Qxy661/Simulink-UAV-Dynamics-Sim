@@ -116,11 +116,15 @@ M    = KpAtt.*eAtt + KiAtt.*ia - KdAtt.*w      % 限幅 [3;3;1.5] N*m
 
 积分项存在状态结构体里（`st.ip`、`st.ia`），调用方负责传入，不用全局变量。
 
+## 固定翼
+
+气动模型、配平与控制器单独写在 [fixedwing.md](fixedwing.md)。与四旋翼共用同一个 13 维状态、刚体方程与积分器，区别只在力和力矩的来源，以及控制量变成 `[throttle; de; da; dr]`。
+
 ## 积分
 
-脚本用定步长 RK4，步长 1 ms。控制器每 `ctrlDiv` 步更新一次，中间保持零阶保持；电机每步更新；每步结束后四元数归一化。
+脚本用定步长 RK4，步长 1 ms。控制器每 `ctrlDiv` 步更新一次，中间保持零阶保持。执行机构（电机、舵机、油门）在积分之前按本步指令更新，整步内视为常值；记录也在积分之前取，和 Simulink 积分器输出的对齐方式一致。每步结束后四元数归一化。
 
-Simulink 模型用 `ode4`，固定步长 1 ms，控制器为 1 ms 离散图表，电机图表同样 1 ms。
+Simulink 模型用 `ode4`，固定步长 1 ms。控制器、电机与执行机构都是 1 ms 离散图表，刚体导数是纯函数图表，可被 RK4 的四个子步反复调用。
 
 ## 数据流
 
@@ -165,3 +169,13 @@ Step/Psi -> RefMux -> Ctrl -> TM -> Mixer -> Motors -> Wrench
 | `+uav/+sim/metrics.m` | 误差、倾角、饱和统计 |
 | `+uav/+model/*.m` | 生成 Simulink 图表源码 |
 | `+uav/demo.m` | 演示与出图 |
+| `+uav/+cfg/fw.m` | 固定翼质量、惯量、气动系数、舵面限幅 |
+| `+uav/+cfg/fwctrl.m` | 固定翼控制器增益 |
+| `+uav/+plant/fw_aero.m` | 固定翼气动力与力矩 |
+| `+uav/+plant/fw_trim.m` | 定直平飞配平（迎角、升降舵、油门） |
+| `+uav/+plant/actuator_step.m` | 舵机与油门一阶滞后 |
+| `+uav/+plant/euler2quat.m` | ZYX 欧拉角转四元数 |
+| `+uav/+ctrl/fw_cascade.m` | 固定翼高度/航向/速度回路 |
+| `+uav/+env/fw_ref.m` | 固定翼任务参考（纯函数） |
+| `+uav/+env/fw_mission.m` | 固定翼任务参考句柄 |
+| `+uav/+sim/run_fw.m` | 固定翼 RK4 闭环仿真 |

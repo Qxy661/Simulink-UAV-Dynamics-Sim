@@ -43,15 +43,15 @@ for k = 1:N
         [wcmd, sat] = uav.plant.mixer([Tcmd; Mcmd], p);
     end
 
+    % 电机先按本步指令更新，再在整步内视为常值积分
+    w = uav.plant.motor_step(w, wcmd, p, dt);
+
     k1 = deriv(x, w, p);
     k2 = deriv(x + 0.5*dt*k1, w, p);
     k3 = deriv(x + 0.5*dt*k2, w, p);
     k4 = deriv(x + dt*k3, w, p);
-    x = x + (dt/6)*(k1 + 2*k2 + 2*k3 + k4);
-    x(7:10) = x(7:10)/norm(x(7:10));
 
-    w = uav.plant.motor_step(w, wcmd, p, dt);
-
+    % 记录时刻 t 的状态（积分之前），与 Simulink 积分器输出的对齐方式一致
     if mod(k-1, s.logDiv) == 0
         j = j + 1;
         tLog(j) = t;
@@ -64,6 +64,9 @@ for k = 1:N
         rLog(j, :) = rNow.p';
         satLog(j) = sat;
     end
+
+    x = x + (dt/6)*(k1 + 2*k2 + 2*k3 + k4);
+    x(7:10) = x(7:10)/norm(x(7:10));
 end
 
 out.t    = tLog(1:j);

@@ -4,18 +4,21 @@
 
 ```matlab
 addpath('E:\path\to\drone-simulink');
-runtests('tests')            % 25 项，约 4 s
+runtests('tests')            % 38 项，约 19 s
 cd scripts
 build_quad_model
 validate_model
+build_fw_model
+validate_fw_model
 uav.demo('step')
+uav.demo('fw')
 ```
 
 ## 测试清单
 
-`runtests('tests')` 共 25 项：`tPlant` 13 项、`tController` 7 项、`tClosedLoop` 5 项。全部通过，总耗时 3.9 s。
+`runtests('tests')` 共 38 项：`tPlant` 13 项、`tController` 7 项、`tClosedLoop` 5 项、`tFixedWing` 13 项。全部通过，总耗时 19.3 s。
 
-### tPlant（13）
+### tPlant（13，四旋翼）
 
 | 测试 | 断言内容 |
 | --- | --- |
@@ -33,7 +36,7 @@ uav.demo('step')
 | motorStepRespectsLimit | 指令超限时转速停在 `wMax` |
 | dragOpposesVelocity | 阻力与速度反向 |
 
-### tController（7）
+### tController（7，四旋翼）
 
 | 测试 | 断言内容 |
 | --- | --- |
@@ -45,7 +48,7 @@ uav.demo('step')
 | momentIsCapped | 大姿态误差下力矩不超过 `maxM` |
 | integralWindsUpBounded | 积分项限幅，水平通道不累积 |
 
-### tClosedLoop（5）
+### tClosedLoop（5，四旋翼）
 
 | 测试 | 断言内容 |
 | --- | --- |
@@ -55,41 +58,73 @@ uav.demo('step')
 | repeatedRunsAreIdentical | 同一输入跑两次，结果逐位相同 |
 | quaternionStaysNormalized | 全程 `norm(q) - 1` 小于 1e-10 |
 
+### tFixedWing（13，固定翼）
+
+| 测试 | 断言内容 |
+| --- | --- |
+| trimIsEquilibrium | 配平状态代回刚体方程，加速度与角加速度小于 1e-9 |
+| trimLiftMatchesWeight | 配平升力等于重力（2% 内），升阻比大于 10，油门在 0–0.5 |
+| liftIncreasesWithAngleOfAttack | 迎角增大使机体 z 向力更负（升力变大） |
+| elevatorSignIsNoseDown | 升降舵正偏使俯仰力矩减小 |
+| aileronRollsRight | 副翼正偏使滚转力矩增大 |
+| sideslipProducesSideForce | 侧滑产生侧力，方向与 `CYb` 一致 |
+| eulerQuatRoundTrip | 欧拉角与四元数往返误差小于 1e-10 |
+| actuatorStepMatchesFirstOrder | 执行机构一步后的位置等于 `1 - exp(-dt/tau)` |
+| levelFlightHoldsAltitude | 10 s 平飞高度偏差小于 2 m，空速偏差小于 1 m/s |
+| climbReachesReference | 爬升 30 m，末端误差小于 0.5 m，无过冲超过 1.5 m |
+| headingTurnConverges | 转弯 60°，末端误差小于 2°，滚转不超过 40° |
+| quaternionStaysNormalized | 12 s 全程四元数范数偏差小于 1e-12 |
+| repeatedRunIsIdentical | 同一输入跑两次，结果逐位相同 |
+
 ## 演示结果
 
-`uav.demo` 三个案例的实测输出：
+`uav.demo` 三个四旋翼案例的实测输出：
 
 | 案例 | 末端位置 (m) | 末段误差 max / rms (m) | 最大倾角 | 饱和占比 |
 | --- | --- | --- | --- | --- |
 | hover | [-0.000, -0.000, -4.999] | 0.031 / 0.020 | 0.0° | 0.0% |
-| step | [3.000, 2.000, -4.999] | 0.003 / 0.002 | 32.5° | 2.6% |
-| yaw | [-0.000, -0.000, -5.011] | 0.014 / 0.011 | 0.0° | 0.0% |
+| step | [3.000, 2.000, -4.999] | 0.006 / 0.002 | 30.5° | 1.6% |
+| yaw | [-0.000, -0.000, -5.011] | 0.013 / 0.010 | 0.0° | 1.8% |
 
-hover 的 3 cm 误差来自 1 m 高度爬升后的稳态偏差，主要是垂向积分项在 12 s 内没有完全消掉。step 的 32.5° 倾角是 3 m 阶跃的瞬态峰值，饱和 2.6% 集中在阶跃后的 0.3 s 内。
+hover 的 3 cm 误差来自 1 m 高度爬升后的稳态偏差，垂向积分项在 12 s 内没有完全消掉。step 的 30.5° 倾角是 3 m 阶跃的瞬态峰值，饱和集中在阶跃后约 0.3 s。
+
+固定翼 `uav.demo('fw')`：
+
+| 量 | 结果 |
+| --- | --- |
+| 末端高度 / 航向 / 空速 | 130.01 m / 60.0° / 22.02 m/s |
+| 高度范围 | 100.0 – 130.1 m |
+| 空速范围 | 16.1 – 22.4 m/s |
+| 最大舵偏 | 升降舵 14.6°，副翼 15.1°，方向舵 2.4° |
 
 ## 脚本与 Simulink 对拍
 
-同一组方程，两套独立实现。脚本 1 ms RK4、控制器 1 kHz；模型 `ode4`、1 ms、控制器与电机均为 1 ms 离散图表。比较 14 s 的 13 维状态：
+同一组方程，两套独立实现。脚本 1 ms RK4，控制器 1 kHz；模型 `ode4`、1 ms、控制器与执行机构均为 1 ms 离散图表。两边都先更新执行机构、再在整步内视为常值积分，记录也都在积分之前。
+
+四旋翼，比较 14 s 的 13 维状态：
 
 | 分量 | 最大偏差 | 分量 | 最大偏差 |
 | --- | --- | --- | --- |
-| pn | 2.0e-4 | qw | 1.2e-3 |
-| pe | 5.6e-4 | qx | 2.8e-3 |
-| pd | 1.2e-2 | qy | 5.0e-3 |
-| u | 7.7e-3 | qz | 1.9e-3 |
-| v | 2.0e-3 | p | 0.32 |
-| w | 4.4e-2 | q | 0.53 |
-| | | r | 5.7e-2 |
+| pn | 8.9e-16 | qw | 3.6e-13 |
+| pe | 6.7e-16 | qx | 3.0e-14 |
+| pd | 8.9e-16 | qy | 6.4e-14 |
+| u | 6.7e-16 | qz | 7.1e-14 |
+| v | 1.5e-15 | p | 1.0e-14 |
+| w | 1.2e-15 | q | 1.1e-14 |
+| | | r | 4.0e-15 |
 
-位置轨迹最大偏差 12.0 mm，终点偏差 0.038 mm。
+位置轨迹最大偏差 1.1e-15 m，终点偏差 8.9e-16 m，等价于双精度舍入量级。
 
-姿态角速度在 0.3–0.5 rad/s 量级的偏差出现在阶跃后电机饱和的那 0.3 s 里，之后收敛到 1e-3 以下。原因是模型里离散控制器的输出在 1 ms 网格上更新，而脚本的控制器在 RK4 的 4 个子步里保持同一组输入，两者的执行顺序不同。位置是最严格的比较量，因为它对力和力矩的积分误差不做任何抵消。
+固定翼，比较 60 s 的 13 维状态：最大偏差 1.3e-12，位置偏差 0 mm（打印精度内）。
 
-`validate_model` 的通过条件：位置轨迹最大偏差小于 5 cm、终点偏差小于 1 mm、角速度偏差小于 1.5 rad/s。三个条件同时满足才打印“对拍通过”。
+早期版本对拍差 12 mm，两个原因都在顺序上：脚本在积分之后才更新电机、且日志记录的是积分后的状态。把执行机构更新与记录都移到积分之前，偏差降到 1e-15。
+
+`validate_model` 与 `validate_fw_model` 的通过条件都是 13 维状态最大偏差小于 1e-9，打印“对拍通过”即代表两套实现给出同一条轨迹。
 
 ## 已知偏差与限制
 
 - 线阻力系数 0.08 N/(m/s) 是量级估计，没有风洞或飞行数据标定。
-- 电机时间常数 0.02 s 对应常见小型无刷电机加桨，未做阶跃辨识。
+- 固定翼气动导数是公开文献的通用量级，未用某型飞机的风洞数据。
+- 电机时间常数 0.02 s、舵机 0.05 s 对应常见小型电动模型，未做阶跃辨识。
 - 姿态控制在小角度下工作。超过 60° 的机动没有验证。
-- Simulink 模型只覆盖四旋翼。固定翼、eVTOL 尚未进入模型层。
+- 固定翼增益只在 18 m/s 平飞点整定。

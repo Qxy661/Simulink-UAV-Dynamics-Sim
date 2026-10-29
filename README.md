@@ -1,6 +1,6 @@
-# 四旋翼 Simulink 仿真框架
+# 无人机 Simulink 仿真框架
 
-一套可运行的无人机闭环仿真代码：MATLAB 包做数值实现，Simulink 模型做结构验证，两者独立编写同一组方程，互相对拍。
+一套可运行的无人机闭环仿真代码：MATLAB 包做数值实现，Simulink 模型做结构验证，两者独立编写同一组方程，互相对拍。目前包含四旋翼与固定翼两个构型。
 
 不是教程仓库，也不包含论文。代码能跑，测试能过，数值能复现。
 
@@ -8,18 +8,20 @@
 
 | 项目 | 结果 |
 | --- | --- |
-| 单元与闭环测试 | 25 项全部通过，耗时 3.9 s |
-| 位置阶跃跟踪 | 末端误差 0.003 m，最大倾角 32.5°，饱和占比 2.6% |
-| Simulink 对拍 | 14 s 位置轨迹最大偏差 12 mm，终点偏差 0.04 mm |
-| Simulink 版本 | R2024a，无需额外工具箱 |
+| 单元与闭环测试 | 38 项全部通过 |
+| 四旋翼位置阶跃 | 末端误差 0.003 m，最大倾角 30.5° |
+| 固定翼任务 | 爬升 30 m、转弯 60°、加速到 22 m/s，终点高度 130.01 m、航向 60.0°、空速 22.02 m/s |
+| Simulink 对拍 | 四旋翼 14 s 最大偏差 1.1e-15，固定翼 60 s 最大偏差 1.3e-12 |
+| Simulink 版本 | R2024a，只用基础模块与 MATLAB Function |
 
 ## 快速开始
 
 ```matlab
 addpath('E:\path\to\drone-simulink');
-uav.demo('step');          % 位置阶跃，出图到 figures/
-uav.demo('hover');         % 定点悬停
-uav.demo('yaw');           % 航向阶跃
+uav.demo('step');          % 四旋翼位置阶跃，出图到 figures/
+uav.demo('hover');         % 四旋翼定点悬停
+uav.demo('yaw');           % 四旋翼航向阶跃
+uav.demo('fw');            % 固定翼爬升-转弯-加速
 ```
 
 跑测试：
@@ -32,19 +34,21 @@ runtests('tests')
 
 ```matlab
 cd scripts
-build_quad_model          % 生成 models/quad_closed_loop.slx
+build_quad_model           % models/quad_closed_loop.slx
 validate_model             % 与脚本实现对拍
+build_fw_model             % models/fw_closed_loop.slx
+validate_fw_model
 ```
 
 ## 目录
 
 ```
 +uav/
-  +cfg/        参数：机体、控制器、仿真设置
-  +plant/      刚体六自由度、混控、电机、四元数工具
-  +ctrl/       级联控制器、角度归一化
-  +env/        悬停与阶跃参考
-  +sim/        积分器、指标统计
+  +cfg/        参数：四旋翼机体、四旋翼控制器、固定翼机体、固定翼控制器、仿真设置
+  +plant/      刚体六自由度、四旋翼混控与电机、固定翼气动与配平、四元数工具
+  +ctrl/       四旋翼级联控制器、固定翼级联控制器、角度归一化
+  +env/        四旋翼悬停与阶跃参考、固定翼任务参考
+  +sim/        两个构型的积分器、指标统计
   +model/      Simulink 图表源码生成器
   demo.m       演示入口
 tests/         matlab.unittest 测试
@@ -56,7 +60,7 @@ figures/       演示图
 
 ## 约定
 
-状态 13 维，顺序固定：
+状态 13 维，顺序固定，两个构型共用：
 
 ```
 x = [pn; pe; pd; u; v; w; qw; qx; qy; qz; p; q; r]
@@ -64,37 +68,41 @@ x = [pn; pe; pd; u; v; w; qw; qx; qy; qz; p; q; r]
 
 - 世界系 NED，机体系 FRD，四元数为 body 到 NED。
 - 欧拉角按 ZYX 顺序解算，`quat2euler` 返回 `[phi; theta; psi]`。
-- 电机编号：1 右前、2 右后、3 左后、4 左前。1/3 逆时针，2/4 顺时针，`a = arm/sqrt(2)`。
-- 混控矩阵 `B` 把转速平方映射到 `[T; Mx; My; Mz]`，控制器用 `inv(B)`。
+- 四旋翼电机编号：1 右前、2 右后、3 左后、4 左前。1/3 逆时针，2/4 顺时针，`a = arm/sqrt(2)`。
+- 四旋翼混控矩阵 `B` 把转速平方映射到 `[T; Mx; My; Mz]`，控制器用 `inv(B)`。
+- 固定翼配平变量为迎角 `alpha`、升降舵 `de`、油门 `thr`，平飞时俯仰角等于迎角。
 
-完整推导与符号见 [docs/architecture.md](docs/architecture.md)，测试数值见 [docs/validation.md](docs/validation.md)。
+完整推导与符号见 [docs/architecture.md](docs/architecture.md)，固定翼单独一份 [docs/fixedwing.md](docs/fixedwing.md)，测试数值见 [docs/validation.md](docs/validation.md)。
 
 ## 设计取舍
 
 **参数用函数返回 struct，不用脚本。** 旧版把 `quad_params.m` 当脚本执行，函数里静态解析看不到 `quad` 变量，会落到内置 `quad.m` 上，报“输入参数的数目不足”。现在 `uav.cfg.quad()` 返回结构体，调用处类型明确。
 
-**控制器带状态 struct。** 积分项存在 `st.ip`、`st.ia` 里，不用全局变量，函数保持 codegen 友好、可重复调用。
+**控制器带状态 struct。** 积分项存在 `st.ip`、`st.ia`、`st.iV` 里，不用全局变量，函数保持 codegen 友好、可重复调用。
 
 **两套实现互相对拍。** Simulink 图表代码由 `+uav/+model` 生成，参数写成字面量，模型自包含，不依赖 MATLAB 路径。方程改动后重跑生成器即可，避免两份代码手工同步。
 
-**测试断言物理量。** 比如“向北有误差时应低头”“等转速不产生力矩”“电机一步后到 63.2%”，不是只检查函数能不能返回。
+**同一套积分顺序。** 脚本与模型都先更新执行机构、再在整步内视为常值做 RK4，记录也都在积分之前。四旋翼早期版本在积分后更新电机，与模型差 12 mm；统一顺序后降到 1e-15 量级。
+
+**测试断言物理量。** 比如“向北有误差时应低头”“等转速不产生力矩”“电机一步后到 63.2%”“升降舵正偏产生低头力矩”，不是只检查函数能不能返回。
 
 ## 已知限制
 
-- 气动只有机体轴线性阻力，没有桨叶挥舞、地面效应、风场。
-- 电机模型是一阶惯性加转速限幅，没有电流环。
-- 姿态控制器在小角度下工作，未做完整 SO(3) 大角度机动。
-- 脚本与 Simulink 的位置轨迹偏差约 1 cm，来源是离散控制器与 RK4 子步的执行顺序差异，不是方程不一致，详见验证文档。
+- 气动只有线性系数：四旋翼是机体轴阻力，固定翼是线性升阻与三轴力矩导数，没有失速、非定常、桨叶挥舞、地面效应、风场。
+- 电机与舵机都是一阶惯性加限幅，没有电流环、没有间隙与死区。
+- 固定翼控制器在 18 m/s 平飞点整定，大迎角或低速段未做增益调度。
+- 未做完整 SO(3) 大角度机动，姿态误差仍按欧拉角计算。
 
 ## English
 
-A runnable quadrotor simulation framework: a MATLAB package for numerics and a Simulink model for structural verification, written independently from the same equations and cross-checked against each other.
+A runnable UAV simulation framework with a quadrotor and a fixed-wing model: a MATLAB package for numerics and Simulink models for structural verification, written independently from the same equations and cross-checked against each other.
 
-25 tests pass in 3.9 s. Position step tracking settles within 3 mm. The Simulink model agrees with the MATLAB implementation to 12 mm over a 14 s trajectory.
+38 tests pass. The quadrotor position step settles within 3 mm. The fixed-wing mission climbs 30 m, turns 60 degrees and accelerates to 22 m/s, settling at 130.01 m, 60.0 degrees and 22.02 m/s. Simulink models agree with the MATLAB implementation to 1.1e-15 (quadrotor, 14 s) and 1.3e-12 (fixed wing, 60 s).
 
 ```matlab
 addpath('/path/to/drone-simulink');
 uav.demo('step');
+uav.demo('fw');
 runtests('tests');
 ```
 
