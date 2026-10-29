@@ -1,6 +1,8 @@
 # 无人机 Simulink 仿真框架
 
-一套可运行的无人机闭环仿真代码：MATLAB 包做数值实现，Simulink 模型做结构验证，两者独立编写同一组方程，互相对拍。目前包含四旋翼、固定翼、倾转四旋翼三个构型。
+[![c-codegen](https://github.com/Qxy661/drone-simulink/actions/workflows/ci.yml/badge.svg)](https://github.com/Qxy661/drone-simulink/actions/workflows/ci.yml)
+
+一套可运行的无人机闭环仿真代码：MATLAB 包做数值实现，Simulink 模型做结构验证，两者独立编写同一组方程，互相对拍；核心循环还能生成 C，脱离 MATLAB 运行。目前包含四旋翼、固定翼、倾转四旋翼三个构型。
 
 不是教程仓库，也不包含论文。代码能跑，测试能过，数值能复现。
 
@@ -13,12 +15,13 @@
 | 固定翼任务 | 爬升 30 m、转弯 60°、加速到 22 m/s，终点高度 130.01 m、航向 60.0°、空速 22.02 m/s |
 | 倾转四旋翼过渡 | β 0→57.3°、空速 0→9.99 m/s，高度偏差 0.33 m，水平误差末段 1.08 m |
 | Simulink 对拍 | 四旋翼 14 s 最大偏差 1.1e-15，固定翼 60 s 1.3e-12，倾转四旋翼 45 s 6.65e-12 |
+| C 代码生成 | 闭环主循环生成 C，gcc 编译后同一任务与脚本差 5.9e-14 |
 | Simulink 版本 | R2024a，只用基础模块与 MATLAB Function |
 
 ## 快速开始
 
 ```matlab
-addpath('E:\path\to\drone-simulink');
+addpath('/path/to/drone-simulink');
 uav.demo('step');          % 四旋翼位置阶跃，出图到 figures/
 uav.demo('hover');         % 四旋翼定点悬停
 uav.demo('yaw');           % 四旋翼航向阶跃
@@ -44,6 +47,14 @@ build_tilt_model           % models/tilt_closed_loop.slx
 validate_tilt_model
 ```
 
+不用 MATLAB 跑一遍四旋翼阶跃（需要 gcc）：
+
+```
+cd c
+mingw32-make
+build\uav_quad_runner      % 写 out/quad_step.csv
+```
+
 ## 目录
 
 ```
@@ -54,9 +65,12 @@ validate_tilt_model
   +env/        四旋翼悬停与阶跃参考、固定翼任务参考、倾转任务参考
   +sim/        三个构型的积分器、指标统计
   +model/      Simulink 图表源码生成器
+  +codegen/    C 代码生成入口
   demo.m       演示入口
 tests/         matlab.unittest 测试
-scripts/       模型生成与对拍脚本
+scripts/       模型生成、对拍、代码生成脚本
+codegen/       生成的 C 源码（入库，可脱离 MATLAB 编译）
+c/             独立运行器、Makefile、参考序列
 docs/          架构与验证说明
 models/        生成的 .slx
 figures/       演示图
@@ -77,7 +91,7 @@ x = [pn; pe; pd; u; v; w; qw; qx; qy; qz; p; q; r]
 - 固定翼配平变量为迎角 `alpha`、升降舵 `de`、油门 `thr`，平飞时俯仰角等于迎角。
 - 倾转四旋翼状态 21 维：13 维刚体 + 短舱角 + 4 转速 + 3 舵面，β=0 推力朝上、β=90° 朝前。
 
-完整推导与符号见 [docs/architecture.md](docs/architecture.md)，固定翼单独一份 [docs/fixedwing.md](docs/fixedwing.md)，倾转四旋翼见 [docs/tiltrotor.md](docs/tiltrotor.md)，测试数值见 [docs/validation.md](docs/validation.md)。
+完整推导与符号见 [docs/architecture.md](docs/architecture.md)，固定翼单独一份 [docs/fixedwing.md](docs/fixedwing.md)，倾转四旋翼见 [docs/tiltrotor.md](docs/tiltrotor.md)，C 代码生成见 [docs/codegen.md](docs/codegen.md)，测试数值见 [docs/validation.md](docs/validation.md)。
 
 ## 设计取舍
 
@@ -90,6 +104,8 @@ x = [pn; pe; pd; u; v; w; qw; qx; qy; qz; p; q; r]
 **同一套积分顺序。** 脚本与模型都先更新执行机构、再在整步内视为常值做 RK4，记录也都在积分之前。四旋翼早期版本在积分后更新电机，与模型差 12 mm；统一顺序后降到 1e-15 量级。
 
 **测试断言物理量。** 比如“向北有误差时应低头”“等转速不产生力矩”“电机一步后到 63.2%”“升降舵正偏产生低头力矩”，不是只检查函数能不能返回。
+
+**生成的 C 入库。** `codegen/` 里是 `uav.codegen.quad_sim` 生成的 C 源码，`c/` 用 gcc 编译成独立运行器。目的不是“能生成”，是让别人 clone 下来不装 MATLAB 也能跑出同一条轨迹：CI 用入库的参考序列比对，误差超过 1e-9 就红。生成物入库的代价是每次改方程要重跑 `scripts/codegen_quad.m`，这一点由 `scripts/validate_c_runner.m` 保证——它先跑 C 再和脚本逐点比，差 5.9e-14。
 
 ## 已知限制
 
@@ -104,6 +120,8 @@ x = [pn; pe; pd; u; v; w; qw; qx; qy; qz; p; q; r]
 A runnable UAV simulation framework with quadrotor, fixed-wing and tilt-rotor models: a MATLAB package for numerics and Simulink models for structural verification, written independently from the same equations and cross-checked against each other.
 
 49 tests pass. The quadrotor position step settles within 3 mm. The fixed-wing mission climbs 30 m, turns 60 degrees and accelerates to 22 m/s, settling at 130.01 m, 60.0 degrees and 22.02 m/s. The tilt-rotor transitions from hover to 10 m/s with the nacelles at 57.3 degrees, holding altitude within 0.33 m. Simulink models agree with the MATLAB implementation to 1.1e-15 (quadrotor, 14 s), 1.3e-12 (fixed wing, 60 s) and 6.65e-12 (tilt rotor, 45 s, all 21 states).
+
+The quadrotor closed loop is also generated to C (`codegen/`) and built without MATLAB: `cd c && make && ./build/uav_quad_runner`. The C trajectory matches the MATLAB one to 5.9e-14 over 1400 samples; CI compares it against a committed reference and fails above 1e-9.
 
 ```matlab
 addpath('/path/to/drone-simulink');

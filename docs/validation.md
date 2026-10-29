@@ -3,8 +3,8 @@
 所有数字来自 R2024a 在本机的一次实际运行，不是估计值。复现命令：
 
 ```matlab
-addpath('E:\path\to\drone-simulink');
-runtests('tests')            % 49 项，约 37 s
+addpath('/path/to/drone-simulink');
+runtests('tests')            % 49 项，约 35 s
 cd scripts
 build_quad_model
 validate_model
@@ -12,6 +12,7 @@ build_fw_model
 validate_fw_model
 build_tilt_model
 validate_tilt_model
+validate_c_runner             % 需要先编译 c/ 下的运行器
 uav.demo('step')
 uav.demo('fw')
 uav.demo('tilt')
@@ -153,6 +154,23 @@ hover 的 3 cm 误差来自 1 m 高度爬升后的稳态偏差，垂向积分项
 早期版本对拍差 12 mm，两个原因都在顺序上：脚本在积分之后才更新电机、且日志记录的是积分后的状态。把执行机构更新与记录都移到积分之前，偏差降到 1e-15。
 
 `validate_model`、`validate_fw_model`、`validate_tilt_model` 的通过条件是状态最大偏差小于容差（1e-9 / 1e-9 / 1e-5），打印“对拍通过”即代表两套实现给出同一条轨迹。
+
+## 脚本与 C 对拍
+
+`scripts\validate_c_runner.m` 跑 `c\build\uav_quad_runner.exe`，把它的 CSV 与 `uav.sim.run` 的同任务结果逐点比较。1400 个样本、13 维状态：
+
+| 通道 | 最大偏差 |
+| --- | --- |
+| pn、pe、pd | 4.4e-16 ~ 8.9e-16 |
+| u、v、w | 8.9e-16 ~ 2.6e-15 |
+| qw、qx、qy、qz | 2.5e-16 ~ 6.4e-16 |
+| p、q、r | 6.5e-15 ~ 5.9e-14 |
+
+末端位置两边都是 `[2.999999, 2.000000, -4.999220]`。判据 1e-6，实测 5.9e-14。
+
+C 侧与 MATLAB 侧用的是同一份生成的 C 代码，差别只来自 gcc 的 libm 与 MATLAB 对 `exp`/`sin`/`atan2` 的末位不同；14 s 积分把 1e-16 放大到 1e-14。
+
+CI 不需要 MATLAB：`.github/workflows/ci.yml` 用 gcc 编译、跑运行器，再拿 `c/ref/quad_step_ref.csv`（MATLAB 侧生成、入库）比对，容差 1e-9。
 
 ## 已知偏差与限制
 

@@ -5,3 +5,13 @@ slprj/
 *_ert_rtw/
 sccprj/
 .hidden/
+
+c/build/
+c/out/
+codegen/*.mat
+codegen/*.dmr
+codegen/html/
+codegen/interface/
+codegen/examples/
+
+out/
