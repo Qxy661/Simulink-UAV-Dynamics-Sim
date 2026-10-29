@@ -146,7 +146,8 @@ actCmd = [ max(-p.deMax, min(p.deMax, de));
 
 betaCmd = p.betaMin + (p.betaMax - p.betaMin)*k;
 
-st.dbg = [a(:); phiD; thetaD; U1; k];
+% 早期这里写 st.dbg = [a(:); phiD; thetaD; U1; k] 用于调参，
+% 代码生成不允许在结构体被读取后再加字段，已删除；需要诊断时临时加回来。
 
 cmd = [om(:); actCmd(:); betaCmd];
 end

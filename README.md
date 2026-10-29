@@ -15,7 +15,7 @@
 | 固定翼任务 | 爬升 30 m、转弯 60°、加速到 22 m/s，终点高度 130.01 m、航向 60.0°、空速 22.02 m/s |
 | 倾转四旋翼过渡 | β 0→57.3°、空速 0→9.99 m/s，高度偏差 0.33 m，水平误差末段 1.08 m |
 | Simulink 对拍 | 四旋翼 14 s 最大偏差 1.1e-15，固定翼 60 s 1.3e-12，倾转四旋翼 45 s 6.65e-12 |
-| C 代码生成 | 闭环主循环生成 C，gcc 编译后同一任务与脚本差 5.9e-14 |
+| C 代码生成 | 三个构型生成 C，gcc 编译后同一任务与脚本差 5.9e-14 / 9.1e-13 / 8.4e-12 |
 | Simulink 版本 | R2024a，只用基础模块与 MATLAB Function |
 
 ## 快速开始
@@ -47,12 +47,13 @@ build_tilt_model           % models/tilt_closed_loop.slx
 validate_tilt_model
 ```
 
-不用 MATLAB 跑一遍四旋翼阶跃（需要 gcc）：
+不用 MATLAB 跑三个构型（需要 gcc）：
 
 ```
 cd c
 mingw32-make
-build\uav_quad_runner      % 写 out/quad_step.csv
+mingw32-make run           % 写 out/quad.csv、out/fw.csv、out/tilt.csv
+build\uav_quad_runner      % 单独跑四旋翼
 ```
 
 ## 目录
@@ -105,7 +106,7 @@ x = [pn; pe; pd; u; v; w; qw; qx; qy; qz; p; q; r]
 
 **测试断言物理量。** 比如“向北有误差时应低头”“等转速不产生力矩”“电机一步后到 63.2%”“升降舵正偏产生低头力矩”，不是只检查函数能不能返回。
 
-**生成的 C 入库。** `codegen/` 里是 `uav.codegen.quad_sim` 生成的 C 源码，`c/` 用 gcc 编译成独立运行器。目的不是“能生成”，是让别人 clone 下来不装 MATLAB 也能跑出同一条轨迹：CI 用入库的参考序列比对，误差超过 1e-9 就红。生成物入库的代价是每次改方程要重跑 `scripts/codegen_quad.m`，这一点由 `scripts/validate_c_runner.m` 保证——它先跑 C 再和脚本逐点比，差 5.9e-14。
+**生成的 C 入库。** `codegen/` 里是 `uav.codegen.*_sim` 生成的 C 源码（三个构型各一目录），`c/` 用 gcc 编译成独立运行器。目的不是“能生成”，是让别人 clone 下来不装 MATLAB 也能跑出同一条轨迹：CI 按构型矩阵用入库的参考序列比对，误差超过 1e-9 就红。生成物入库的代价是每次改方程要重跑 `scripts/codegen_c.m`，这一点由 `scripts/validate_c_runner.m` 保证——它先跑 C 再和脚本逐点比，三个构型分别差 5.9e-14、9.1e-13、8.4e-12。
 
 ## 已知限制
 
@@ -121,7 +122,7 @@ A runnable UAV simulation framework with quadrotor, fixed-wing and tilt-rotor mo
 
 49 tests pass. The quadrotor position step settles within 3 mm. The fixed-wing mission climbs 30 m, turns 60 degrees and accelerates to 22 m/s, settling at 130.01 m, 60.0 degrees and 22.02 m/s. The tilt-rotor transitions from hover to 10 m/s with the nacelles at 57.3 degrees, holding altitude within 0.33 m. Simulink models agree with the MATLAB implementation to 1.1e-15 (quadrotor, 14 s), 1.3e-12 (fixed wing, 60 s) and 6.65e-12 (tilt rotor, 45 s, all 21 states).
 
-The quadrotor closed loop is also generated to C (`codegen/`) and built without MATLAB: `cd c && make && ./build/uav_quad_runner`. The C trajectory matches the MATLAB one to 5.9e-14 over 1400 samples; CI compares it against a committed reference and fails above 1e-9.
+The closed loops of all three configurations are also generated to C (`codegen/quad`, `codegen/fw`, `codegen/tilt`) and built without MATLAB: `cd c && make && make run`. The C trajectories match the MATLAB ones to 5.9e-14 (quadrotor, 1400 samples), 9.1e-13 (fixed wing, 6000) and 8.4e-12 (tilt rotor, 4500, all 21 states); CI compares each against a committed reference and fails above 1e-9.
 
 ```matlab
 addpath('/path/to/drone-simulink');

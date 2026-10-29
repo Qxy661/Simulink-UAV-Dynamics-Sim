@@ -157,7 +157,15 @@ hover 的 3 cm 误差来自 1 m 高度爬升后的稳态偏差，垂向积分项
 
 ## 脚本与 C 对拍
 
-`scripts\validate_c_runner.m` 跑 `c\build\uav_quad_runner.exe`，把它的 CSV 与 `uav.sim.run` 的同任务结果逐点比较。1400 个样本、13 维状态：
+`scripts\validate_c_runner.m` 依次跑三个运行器，把 CSV 与对应脚本实现的同任务结果逐点比较，并把参考序列写入 `c\ref\`：
+
+| 构型 | 样本 x 状态 | 最大偏差 | 出现位置 | 末端位置（两边一致） |
+| --- | --- | --- | --- | --- |
+| quad | 1400 x 13 | 5.86e-14 | 第 118 样本，角速度 p | `[2.999999, 2.000000, -4.999220]` |
+| fw | 6000 x 13 | 9.10e-13 | 第 3291 样本，位置 pn | `[809.219198, 662.627464, -130.008134]` |
+| tilt | 4500 x 21 | 8.38e-12 | 第 2345 样本，转速 om3 | `[325.980899, 0.000000, -20.003875]` |
+
+四旋翼逐通道更细：
 
 | 通道 | 最大偏差 |
 | --- | --- |
@@ -166,11 +174,9 @@ hover 的 3 cm 误差来自 1 m 高度爬升后的稳态偏差，垂向积分项
 | qw、qx、qy、qz | 2.5e-16 ~ 6.4e-16 |
 | p、q、r | 6.5e-15 ~ 5.9e-14 |
 
-末端位置两边都是 `[2.999999, 2.000000, -4.999220]`。判据 1e-6，实测 5.9e-14。
+判据 1e-6。C 侧与 MATLAB 侧用的是同一份生成的 C 代码，差别只来自 gcc 的 libm 与 MATLAB 对 `exp`/`sin`/`atan2` 的末位不同；积分越长放大越多（14 s 到 1e-14，60 s 到 1e-12，倾转 45 s 到 1e-11，因为 21 维里有转速环）。
 
-C 侧与 MATLAB 侧用的是同一份生成的 C 代码，差别只来自 gcc 的 libm 与 MATLAB 对 `exp`/`sin`/`atan2` 的末位不同；14 s 积分把 1e-16 放大到 1e-14。
-
-CI 不需要 MATLAB：`.github/workflows/ci.yml` 用 gcc 编译、跑运行器，再拿 `c/ref/quad_step_ref.csv`（MATLAB 侧生成、入库）比对，容差 1e-9。
+CI 不需要 MATLAB：`.github/workflows/ci.yml` 按构型矩阵用 gcc 编译、跑运行器，再拿 `c/ref/{quad_step_ref,fw_mission_ref,tilt_mission_ref}.csv`（MATLAB 侧生成、入库）比对，容差 1e-9。
 
 ## 已知偏差与限制
 

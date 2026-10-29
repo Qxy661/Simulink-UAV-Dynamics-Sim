@@ -1,35 +1,41 @@
-# 独立 C 运行器：链接 codegen/ 下生成的代码，不依赖 MATLAB。
+# 三个构型的独立运行器：链接 codegen/<构型> 下生成的代码，不依赖 MATLAB。
 # Windows 用 mingw32-make，Linux/macOS 用 make。
 
 ifeq ($(origin CC),default)
 CC := gcc
 endif
-CFLAGS  ?= -O2 -std=c89 -Wall -I. -I../codegen
+CFLAGS  ?= -O2 -std=c89 -Wall -I. -I../codegen/quad -I../codegen/fw -I../codegen/tilt
 LDFLAGS ?= -lm
 
-SRC_CG  := $(wildcard ../codegen/*.c)
-OBJ     := $(patsubst ../codegen/%.c,build/%.o,$(SRC_CG)) build/main.o
-BIN     := build/uav_quad_runner
+MISSIONS := quad fw tilt
 
-.PHONY: all clean run
+all: $(addprefix build/uav_,$(addsuffix _runner,$(MISSIONS)))
 
-all: $(BIN)
+define mission_rules
+build/$(1)_main.o: main.c | build
+	$(CC) $(CFLAGS) -DMISSION_$(1) -c $$< -o $$@
+
+build/$(1)_%.o: ../codegen/$(1)/%.c | build
+	$(CC) $(CFLAGS) -c $$< -o $$@
+
+CG_$(1) := $$(patsubst ../codegen/$(1)/%.c,build/$(1)_%.o,$$(wildcard ../codegen/$(1)/*.c))
+
+build/uav_$(1)_runner: $$(CG_$(1)) build/$(1)_main.o
+	$(CC) $$^ -o $$@ $(LDFLAGS)
+endef
+
+$(foreach m,$(MISSIONS),$(eval $(call mission_rules,$(m))))
 
 build:
 	@mkdir -p build
 
-build/%.o: ../codegen/%.c | build
-	$(CC) $(CFLAGS) -c $< -o $@
-
-build/main.o: main.c | build
-	$(CC) $(CFLAGS) -c $< -o $@
-
-$(BIN): $(OBJ)
-	$(CC) $(OBJ) -o $@ $(LDFLAGS)
-
-run: $(BIN)
+run: all
 	@mkdir -p out
-	./$(BIN)
+	./build/uav_quad_runner out/quad.csv
+	./build/uav_fw_runner out/fw.csv
+	./build/uav_tilt_runner out/tilt.csv
 
 clean:
 	rm -rf build out
+
+.PHONY: all run clean

@@ -6,6 +6,9 @@ function t = fw_trim(p, V)
 %   平飞时航迹角为零、俯仰角等于迎角，机体 x 轴上还有重力的前向分量，
 %   因此推力要抵消阻力前向分量、升力前向分量与重力分量三项。
 %   升力需求与阻力耦合，用几轮不动点迭代即可收敛（阻力是小量）。
+%
+%   结果一次构造为结构体：代码生成要求先算完局部量再建结构体，
+%   分步写 t.CD 再读它算 t.D 会触发字段锁定错误。
 
 if nargin < 2
     V = p.Vtrim;
@@ -26,14 +29,11 @@ for it = 1:6
     CL = (W*cos(a) - D*sin(a)) / (qbar * p.S * cos(a));
 end
 
-t.alpha = a;
-t.de    = x(2);
-t.CL    = CL;
-t.CD    = p.CD0 + p.kind*CL^2;
-t.D     = qbar * p.S * t.CD;
-t.L     = qbar * p.S * t.CL;
-t.thr   = (t.D*cos(a) - t.L*sin(a) + W*sin(a)) / p.Tmax;
-t.V     = V;
-t.LD    = t.CL / t.CD;
-t.qbar  = qbar;
+CD  = p.CD0 + p.kind*CL^2;
+D   = qbar * p.S * CD;
+L   = qbar * p.S * CL;
+thr = (D*cos(a) - L*sin(a) + W*sin(a)) / p.Tmax;
+
+t = struct('alpha', a, 'de', x(2), 'CL', CL, 'CD', CD, 'D', D, 'L', L, ...
+           'thr', thr, 'V', V, 'LD', CL/CD, 'qbar', qbar);
 end

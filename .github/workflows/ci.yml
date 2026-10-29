@@ -10,6 +10,19 @@ jobs:
   c-runner:
     name: 编译 C 运行器并比对参考序列
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - mission: quad
+            ref: quad_step_ref.csv
+            out: quad.csv
+          - mission: fw
+            ref: fw_mission_ref.csv
+            out: fw.csv
+          - mission: tilt
+            ref: tilt_mission_ref.csv
+            out: tilt.csv
     steps:
       - uses: actions/checkout@v4
 
@@ -17,17 +30,17 @@ jobs:
         working-directory: c
         run: make
 
-      - name: 运行阶跃任务
+      - name: 运行 ${{ matrix.mission }} 任务
         working-directory: c
         run: |
           mkdir -p out
-          ./build/uav_quad_runner
+          ./build/uav_${{ matrix.mission }}_runner out/${{ matrix.out }}
 
       - name: 比对参考序列
-        run: python3 c/compare_csv.py c/ref/quad_step_ref.csv c/out/quad_step.csv
+        run: python3 c/compare_csv.py c/ref/${{ matrix.ref }} c/out/${{ matrix.out }}
 
       - name: 上传轨迹
         uses: actions/upload-artifact@v4
         with:
-          name: quad-step-csv
-          path: c/out/quad_step.csv
+          name: ${{ matrix.mission }}-csv
+          path: c/out/${{ matrix.out }}
