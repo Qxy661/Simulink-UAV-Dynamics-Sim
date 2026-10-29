@@ -1,210 +1,105 @@
-# Drone Simulink 仿真平台
+# 四旋翼 Simulink 仿真框架
 
-[![MATLAB](https://img.shields.io/badge/MATLAB-R2022b+-orange.svg)](https://www.mathworks.com/)
-[![Simulink](https://img.shields.io/badge/Simulink-支持-blue.svg)](https://www.mathworks.com/products/simulink.html)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+一套可运行的无人机闭环仿真代码：MATLAB 包做数值实现，Simulink 模型做结构验证，两者独立编写同一组方程，互相对拍。
 
-> 渐进式无人机仿真平台 — 6 种构型, 从四旋翼到集群
-> MATLAB 脚本仿真 + Simulink 控制框图模型, 覆盖从动力学到控制全链路
+不是教程仓库，也不包含论文。代码能跑，测试能过，数值能复现。
 
----
+## 当前状态
 
-## 渐进路线
-
-| 阶段 | 构型 | 核心知识 | 状态 |
-|------|------|---------|------|
-| 1 | **四旋翼** | 6DOF、级联PID、电机模型 | 完成 |
-| 2 | **固定翼** | 气动力(L/D)、转弯协调、舵面控制 | 完成 |
-| 3 | **eVTOL** | 倾转机构、悬停↔巡航过渡 | 完成 |
-| 4 | **复合翼** | 旋翼+固定翼耦合、全飞行包线 | 完成 |
-| 5 | **模块化** | 可配置拓扑、故障注入、自适应控制 | 完成 |
-| 6 | **集群** | 多机通信、编队、避碰、任务分配 | 完成 |
-
----
+| 项目 | 结果 |
+| --- | --- |
+| 单元与闭环测试 | 25 项全部通过，耗时 3.9 s |
+| 位置阶跃跟踪 | 末端误差 0.003 m，最大倾角 32.5°，饱和占比 2.6% |
+| Simulink 对拍 | 14 s 位置轨迹最大偏差 12 mm，终点偏差 0.04 mm |
+| Simulink 版本 | R2024a，无需额外工具箱 |
 
 ## 快速开始
 
 ```matlab
-% 1. 打开 MATLAB，进入项目目录
-cd E:\drone-simulink
-
-% 2. 初始化（添加路径 + 加载参数）
-init_project
-
-% 3. 构建 Simulink 模型 (一次性生成全部 .slx)
-build_all_models
-
-% 4. 打开 Simulink 模型查看控制框图
-open_system('quad_cascade_pid')      % 四旋翼级联PID
-open_system('fixedwing_control')     % 固定翼
-open_system('evtol_transition')      % eVTOL
-open_system('compound_vtol')         % 复合翼
-
-% 5. 或运行 MATLAB 脚本仿真
-quad_hover
-fw_level_flight
+addpath('E:\path\to\drone-simulink');
+uav.demo('step');          % 位置阶跃，出图到 figures/
+uav.demo('hover');         % 定点悬停
+uav.demo('yaw');           % 航向阶跃
 ```
 
----
-
-## 项目结构
-
-```
-drone-simulink/
-├── init_project.m          # 项目初始化脚本
-├── params/                 # 物理参数 + 控制器参数
-│   ├── quad_params.m       # 四旋翼物理参数
-│   ├── fixedwing_params.m  # 固定翼物理参数
-│   ├── aero_params.m       # 气动系数 (CL/CD/Cm)
-│   ├── motor_params.m      # 电机模型参数
-│   ├── controller_params.m # PID 参数 (四旋翼+固定翼)
-│   ├── sensor_params.m     # 传感器噪声参数
-│   └── sim_params.m        # 仿真配置
-├── core/                   # 核心模块
-│   ├── DroneDynamics.m     # 动力学基类
-│   ├── QuadcopterDynamics.m# 四旋翼动力学 (含四元数/地面效应/VRS)
-│   ├── FixedWingDynamics.m # 固定翼动力学
-│   ├── AeroModel.m         # 气动模型 (C1 连续失速)
-│   ├── MotorModel.m        # 电机模型
-│   ├── Mixer.m             # 混控器
-│   ├── SensorModel.m       # 传感器模型
-│   ├── WindModel.m         # 风扰模型 (含 Dryden 湍流)
-│   └── TrajectoryGenerator.m # 轨迹生成器
-├── control/                # 控制器
-│   ├── PIDController.m     # 通用 PID
-│   ├── AttitudeController.m# 姿态环 (四旋翼)
-│   ├── PositionController.m# 位置环 (四旋翼)
-│   ├── AltitudeController.m# 高度控制 (固定翼)
-│   └── HeadingController.m # 航向控制 (固定翼)
-├── utils/                  # 工具函数
-│   ├── euler_to_rotation.m # 欧拉角→旋转矩阵
-│   ├── quaternion_ops.m    # 四元数运算 (乘法/转换/求导)
-│   ├── wind_frame_transform.m # 机体↔气流坐标系
-│   ├── plot_results.m      # 结果绘图 (四旋翼)
-│   ├── plot_fixedwing_results.m # 结果绘图 (固定翼)
-│   └── animate_3d.m        # 3D 动画
-├── sim/                    # 仿真脚本
-│   ├── run_quad_sim.m      # 四旋翼仿真主函数
-│   ├── run_fixedwing_sim.m # 固定翼仿真主函数
-│   ├── run_evtol_sim.m     # eVTOL 仿真主函数
-│   ├── run_compound_sim.m  # 复合翼仿真主函数
-│   └── run_all_demos.m     # 全构型演示
-├── examples/               # 示例场景 (11 个)
-│   ├── quad_hover.m        # 四旋翼悬停
-│   ├── quad_circle.m       # 四旋翼圆形轨迹
-│   ├── quad_high_fidelity.m # 高保真仿真 (地面效应/电池/湍流)
-│   ├── fw_level_flight.m   # 固定翼平飞
-│   ├── fw_turn.m           # 固定翼转弯
-│   ├── fw_climb_descent.m  # 固定翼爬升/下降
-│   ├── evtol_transition.m  # eVTOL 过渡飞行
-│   ├── evtol_mission.m     # eVTOL 完整任务
-│   ├── compound_vtol.m     # 复合翼 VTOL 任务
-│   ├── modular_fault.m     # 模块化故障注入
-│   └── swarm_formation.m   # 集群编队
-├── tests/                  # 单元测试
-│   ├── test_dynamics.m     # 动力学测试
-│   ├── test_controller.m   # 控制器测试
-│   ├── test_trim.m         # 固定翼配平测试
-│   └── test_high_fidelity.m # 高保真模型测试 (26 项)
-├── models/                 # Simulink 模型 (.slx)
-│   ├── build_all_models.m      # 一键构建全部模型
-│   ├── build_quad_model.m      # 四旋翼模型构建器
-│   ├── build_fixedwing_model.m # 固定翼模型构建器
-│   ├── build_evtol_model.m     # eVTOL模型构建器
-│   └── build_compound_model.m  # 复合翼模型构建器
-└── docs/                   # 文档
-    ├── tutorial_quad.md    # 四旋翼教程
-    ├── tutorial_fixedwing.md # 固定翼教程
-    ├── math_derivations.md # 数学推导
-    └── tuning_guide.md     # 调参指南
-```
-
----
-
-## Simulink 控制框图模型
-
-每个构型都有对应的 .slx 模型，可在 Simulink 中打开查看完整控制框图:
-
-| 模型 | 文件 | 控制架构 |
-|------|------|---------|
-| 四旋翼 | `quad_cascade_pid.slx` | 位置环→姿态环→混控→电机→6DOF |
-| 固定翼 | `fixedwing_control.slx` | 高度环(升降舵+油门) + 航向环(副翼+方向舵) |
-| eVTOL | `evtol_transition.slx` | 悬停/过渡/巡航三模式 + 倾转机构 |
-| 复合翼 | `compound_vtol.slx` | 升力旋翼+推进器+舵面 全包线 |
+跑测试：
 
 ```matlab
-% 构建全部模型
-build_all_models
-
-% 或单独构建
-build_quad_model
-build_fixedwing_model
-build_evtol_model
-build_compound_model
+runtests('tests')
 ```
 
----
-
-## 技术要点
-
-### 四旋翼动力学
-
-12 维状态 (Euler): `[x,y,z, vx,vy,vz, φ,θ,ψ, p,q,r]`
-13 维状态 (四元数): `[x,y,z, vx,vy,vz, qw,qx,qy,qz, p,q,r]`
-
-- **平动**: Newton 第二定律 + 旋转矩阵
-- **转动**: Euler 方程 + 陀螺力矩
-- **电机**: 一阶惯性模型 `ω̇ = (1/τ)(ω_cmd - ω)`
-- **混控**: X 型布局，4×4 矩阵求逆
-
-### 高保真物理效应
-
-| 效应 | 说明 | 参考 |
-|------|------|------|
-| 四元数姿态 | 避免万向锁，全姿态域有效 | PX4 内部表示 |
-| 地面效应 | 近地面推力增加 (最高 50%) | Leishman Ch.3 |
-| 旋翼阻力 (H-force) | 前飞时旋翼水平阻力 | PX4 Rotor Drag |
-| 电池电压衰减 | 推力 ∝ V² | PX4 Battery Model |
-| 涡环状态 (VRS) | 下降时推力损失 ~50% | Leishman Ch.3 |
-| 前飞升力修正 | 前飞时旋翼效率增加 | Leishman Ch.1 |
-| C1 连续失速 | 平滑 CL(α) 失速过渡 | Gazebo LiftDrag |
-| Dryden 湍流 | MIL-F-8785C 标准湍流模型 | MIL-F-8785C |
+生成并校验 Simulink 模型：
 
 ```matlab
-% 高保真仿真示例
-fidelity_cfg.ground_effect = true;
-fidelity_cfg.battery_decay = true;
-fidelity_cfg.translational_lift = true;
-[t, state, cmd] = run_quad_sim(traj, 30, wind_cfg, fidelity_cfg);
+cd scripts
+build_quad_model          % 生成 models/quad_closed_loop.slx
+validate_model             % 与脚本实现对拍
 ```
 
-### 级联 PID
+## 目录
 
 ```
-位置环 (外环) → 姿态期望 → 姿态环 (内环) → 力矩命令 → 混控器 → 电机
++uav/
+  +cfg/        参数：机体、控制器、仿真设置
+  +plant/      刚体六自由度、混控、电机、四元数工具
+  +ctrl/       级联控制器、角度归一化
+  +env/        悬停与阶跃参考
+  +sim/        积分器、指标统计
+  +model/      Simulink 图表源码生成器
+  demo.m       演示入口
+tests/         matlab.unittest 测试
+scripts/       模型生成与对拍脚本
+docs/          架构与验证说明
+models/        生成的 .slx
+figures/       演示图
 ```
 
-### 固定翼气动
+## 约定
 
-12 维状态: `[x,y,z, vx,vy,vz, φ,θ,ψ, p,q,r]`
+状态 13 维，顺序固定：
 
-- **气动力**: 升力 L = 0.5ρV²S·CL(α), 阻力 D = 0.5ρV²S·CD(α)
-- **舵面**: 升降舵(俯仰)、副翼(滚转)、方向舵(偏航)
-- **配平**: 定常飞行条件 (L=mg, T=D, Cm=0)
-- **控制**: 高度环(油门+升降舵) + 航向环(副翼+方向舵)
+```
+x = [pn; pe; pd; u; v; w; qw; qx; qy; qz; p; q; r]
+```
 
----
+- 世界系 NED，机体系 FRD，四元数为 body 到 NED。
+- 欧拉角按 ZYX 顺序解算，`quat2euler` 返回 `[phi; theta; psi]`。
+- 电机编号：1 右前、2 右后、3 左后、4 左前。1/3 逆时针，2/4 顺时针，`a = arm/sqrt(2)`。
+- 混控矩阵 `B` 把转速平方映射到 `[T; Mx; My; Mz]`，控制器用 `inv(B)`。
 
-## 参考文献
+完整推导与符号见 [docs/architecture.md](docs/architecture.md)，测试数值见 [docs/validation.md](docs/validation.md)。
 
-- Beard & McLain, "Small Unmanned Aircraft: Theory and Practice", Princeton, 2012
-- Randal Beard, "Quadrotor Dynamics and Control", BYU, 2008
-- Leishman, "Principles of Helicopter Aerodynamics", Cambridge, 2006
-- MIL-F-8785C, "Flying Qualities of Piloted Airplanes", 1980
-- PX4 Developer Guide, https://docs.px4.io/
+## 设计取舍
 
----
+**参数用函数返回 struct，不用脚本。** 旧版把 `quad_params.m` 当脚本执行，函数里静态解析看不到 `quad` 变量，会落到内置 `quad.m` 上，报“输入参数的数目不足”。现在 `uav.cfg.quad()` 返回结构体，调用处类型明确。
+
+**控制器带状态 struct。** 积分项存在 `st.ip`、`st.ia` 里，不用全局变量，函数保持 codegen 友好、可重复调用。
+
+**两套实现互相对拍。** Simulink 图表代码由 `+uav/+model` 生成，参数写成字面量，模型自包含，不依赖 MATLAB 路径。方程改动后重跑生成器即可，避免两份代码手工同步。
+
+**测试断言物理量。** 比如“向北有误差时应低头”“等转速不产生力矩”“电机一步后到 63.2%”，不是只检查函数能不能返回。
+
+## 已知限制
+
+- 气动只有机体轴线性阻力，没有桨叶挥舞、地面效应、风场。
+- 电机模型是一阶惯性加转速限幅，没有电流环。
+- 姿态控制器在小角度下工作，未做完整 SO(3) 大角度机动。
+- 脚本与 Simulink 的位置轨迹偏差约 1 cm，来源是离散控制器与 RK4 子步的执行顺序差异，不是方程不一致，详见验证文档。
+
+## English
+
+A runnable quadrotor simulation framework: a MATLAB package for numerics and a Simulink model for structural verification, written independently from the same equations and cross-checked against each other.
+
+25 tests pass in 3.9 s. Position step tracking settles within 3 mm. The Simulink model agrees with the MATLAB implementation to 12 mm over a 14 s trajectory.
+
+```matlab
+addpath('/path/to/drone-simulink');
+uav.demo('step');
+runtests('tests');
+```
+
+Conventions: world frame NED, body frame FRD, quaternion body-to-NED, state vector `[pn pe pd u v w qw qx qy qz p q r]`. Motors 1-4 are front-right, rear-right, rear-left, front-left; 1 and 3 turn counter-clockwise.
 
 ## License
 
-MIT
+MIT，见 [LICENSE](LICENSE)。

@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "如果在本项目基础上开展研究，请引用以下条目。"
+title: "四旋翼 Simulink 仿真框架"
+abstract: "四旋翼闭环仿真：MATLAB 包数值实现与 Simulink 模型结构实现互相对拍，含级联控制、混控、一阶电机模型与 25 项自动化测试。"
+authors:
+  - family-names: "Qxy661"
+    name: "Qxy661"
+version: 1.0.0
+date-released: 2026-10-29
+license: MIT
+repository-code: "https://github.com/Qxy661/drone-simulink"
+keywords:
+  - quadrotor
+  - simulink
+  - flight control
+  - simulation

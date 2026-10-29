@@ -1,30 +1,7 @@
-# MATLAB / Simulink
-*.asv
-*.slxc
 *.autosave
+*.asv
 slprj/
-sccprj/
-codegen/
-*.mex*
-*.mlappinstall
-
-# Simulink cache
 *.slxc
-*.bak
-
-# MATLAB code generation
-codegen/
-
-# OS
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# IDE
-.vscode/
-.idea/
-
-# Output
-*.avi
-*.mp4
-*.gif
+*_ert_rtw/
+sccprj/
+.hidden/
