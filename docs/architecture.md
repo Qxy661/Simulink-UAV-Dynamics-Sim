@@ -195,3 +195,11 @@ Step/Psi -> RefMux -> Ctrl -> TM -> Mixer -> Motors -> Wrench
 | `+uav/+env/tilt_ref.m` | 倾转任务参考（悬停-转捩-巡航） |
 | `+uav/+env/tilt_ref_v.m` | 参数化参考，用于包线扫描 |
 | `+uav/+sim/run_tilt.m` | 21 维状态 RK4 闭环仿真 |
+
+## C 代码生成
+
+`+uav/+codegen/quad_sim.m` 是四旋翼闭环主循环的代码生成入口，逻辑与 `uav.sim.run` 逐行对应，只把参考、控制器状态、参数都收成固定尺寸的局部量。`scripts/codegen_quad.m` 调 `codegen -config:lib -GenCodeOnly`，输出到 `codegen/`；`c/main.c` 链接这些文件构成独立运行器，`c/Makefile` 用 gcc 构建。
+
+生成的 C 与脚本实现的差别只在于 libm 的末位，14 s 后状态最大偏差 5.9e-14（角速度通道），位置与四元数在 1e-15 量级。细节见 [codegen.md](codegen.md)。
+
+`+uav/+cfg/quad.m` 为此改成了“先算局部变量、再一次构造结构体”：分步写 `p.arm` 再读它算 `p.a`，代码生成器会报字段锁定错误。
