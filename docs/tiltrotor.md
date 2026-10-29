@@ -140,14 +140,37 @@ U1 = (1-k)·|Frot| + k·max(0, d'·Frot)
 
 复现：`uav.env.tilt_ref_v(t, Vmax)` 是同一形状的参数化参考。
 
+## Simulink 模型
+
+`models/tilt_closed_loop.slx` 与另外两个构型同构：
+
+```
+Clock -> Ref -> Ctrl -> Deriv -> Int -+
+                  ^                 |
+                  +-----------------+
+```
+
+- `Ref`：纯函数图表，解析式任务参考，输出 12 维 `[p; v; a; psi; h; V]`。
+- `Ctrl`：离散 1e-3，带 `persistent ip/ia`，输出 8 维 `[om; de; da; dr; beta]`。
+- `Deriv`：纯函数，一次算完 21 维导数，含短舱、转速、舵面的一阶滞后。
+
+参数在生成时写成字面量，模型不依赖 MATLAB 路径。生成与对拍：
+
+```matlab
+cd scripts
+build_tilt_model
+validate_tilt_model
+```
+
+45 s 对拍：最大偏差 6.65e-12，位置 0.000 mm，姿态 1.0e-14 rad，短舱逐位一致。
+脚本侧 `ctrlDiv=1`，与模型里控制器 1 ms 采样对应。
+
 ## 未解决
 
 1. **减速回悬停。** 从 10 m/s 减速到 0 时，姿态混合把倾角需求摊薄，
    实测位置滞后 25 m；β 收回 8° 后机体继续漂移，最终俯仰冲到 90° 失稳。
    当前任务在巡航结束就停止，不覆盖这一段。
 2. **β=90° 全转换。** 包线到 57°，全转换需要更大的机翼或变距桨。
-3. **没有倾转四旋翼的 Simulink 模型。** 21 维状态 + 短舱调度，
-   MATLAB Function 图表的线段数会是四旋翼的三倍，暂未做。
 
 ## 文件
 

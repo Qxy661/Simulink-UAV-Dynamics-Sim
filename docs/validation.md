@@ -10,8 +10,11 @@ build_quad_model
 validate_model
 build_fw_model
 validate_fw_model
+build_tilt_model
+validate_tilt_model
 uav.demo('step')
 uav.demo('fw')
+uav.demo('tilt')
 ```
 
 ## 测试清单
@@ -145,9 +148,11 @@ hover 的 3 cm 误差来自 1 m 高度爬升后的稳态偏差，垂向积分项
 
 固定翼，比较 60 s 的 13 维状态：最大偏差 1.3e-12，位置偏差 0 mm（打印精度内）。
 
+倾转四旋翼，比较 45 s 的 21 维状态：最大偏差 6.65e-12，位置 0.000 mm，姿态 1.0e-14 rad，短舱逐位一致。短舱、转速、舵面的滞后在两边都写成同一条一阶方程，所以 21 维全量可比，不只是 13 维刚体。
+
 早期版本对拍差 12 mm，两个原因都在顺序上：脚本在积分之后才更新电机、且日志记录的是积分后的状态。把执行机构更新与记录都移到积分之前，偏差降到 1e-15。
 
-`validate_model` 与 `validate_fw_model` 的通过条件都是 13 维状态最大偏差小于 1e-9，打印“对拍通过”即代表两套实现给出同一条轨迹。
+`validate_model`、`validate_fw_model`、`validate_tilt_model` 的通过条件是状态最大偏差小于容差（1e-9 / 1e-9 / 1e-5），打印“对拍通过”即代表两套实现给出同一条轨迹。
 
 ## 已知偏差与限制
 

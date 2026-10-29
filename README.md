@@ -12,7 +12,7 @@
 | 四旋翼位置阶跃 | 末端误差 0.003 m，最大倾角 30.5° |
 | 固定翼任务 | 爬升 30 m、转弯 60°、加速到 22 m/s，终点高度 130.01 m、航向 60.0°、空速 22.02 m/s |
 | 倾转四旋翼过渡 | β 0→57.3°、空速 0→9.99 m/s，高度偏差 0.33 m，水平误差末段 1.08 m |
-| Simulink 对拍 | 四旋翼 14 s 最大偏差 1.1e-15，固定翼 60 s 最大偏差 1.3e-12 |
+| Simulink 对拍 | 四旋翼 14 s 最大偏差 1.1e-15，固定翼 60 s 1.3e-12，倾转四旋翼 45 s 6.65e-12 |
 | Simulink 版本 | R2024a，只用基础模块与 MATLAB Function |
 
 ## 快速开始
@@ -40,6 +40,8 @@ build_quad_model           % models/quad_closed_loop.slx
 validate_model             % 与脚本实现对拍
 build_fw_model             % models/fw_closed_loop.slx
 validate_fw_model
+build_tilt_model           % models/tilt_closed_loop.slx
+validate_tilt_model
 ```
 
 ## 目录
@@ -101,7 +103,7 @@ x = [pn; pe; pd; u; v; w; qw; qx; qy; qz; p; q; r]
 
 A runnable UAV simulation framework with quadrotor, fixed-wing and tilt-rotor models: a MATLAB package for numerics and Simulink models for structural verification, written independently from the same equations and cross-checked against each other.
 
-49 tests pass. The quadrotor position step settles within 3 mm. The fixed-wing mission climbs 30 m, turns 60 degrees and accelerates to 22 m/s, settling at 130.01 m, 60.0 degrees and 22.02 m/s. The tilt-rotor transitions from hover to 10 m/s with the nacelles at 57.3 degrees, holding altitude within 0.33 m. Simulink models agree with the MATLAB implementation to 1.1e-15 (quadrotor, 14 s) and 1.3e-12 (fixed wing, 60 s).
+49 tests pass. The quadrotor position step settles within 3 mm. The fixed-wing mission climbs 30 m, turns 60 degrees and accelerates to 22 m/s, settling at 130.01 m, 60.0 degrees and 22.02 m/s. The tilt-rotor transitions from hover to 10 m/s with the nacelles at 57.3 degrees, holding altitude within 0.33 m. Simulink models agree with the MATLAB implementation to 1.1e-15 (quadrotor, 14 s), 1.3e-12 (fixed wing, 60 s) and 6.65e-12 (tilt rotor, 45 s, all 21 states).
 
 ```matlab
 addpath('/path/to/drone-simulink');
