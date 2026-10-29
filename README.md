@@ -1,7 +1,5 @@
 # 无人机 Simulink 仿真框架
 
-> **项目主仓已迁至 [Qxy661/Simulink-UAV-Dynamics-Sim](https://github.com/Qxy661/Simulink-UAV-Dynamics-Sim)。** 本仓保留为镜像，新提交请看主仓。
-
 [![c-codegen](https://github.com/Qxy661/Simulink-UAV-Dynamics-Sim/actions/workflows/ci.yml/badge.svg)](https://github.com/Qxy661/Simulink-UAV-Dynamics-Sim/actions/workflows/ci.yml)
 
 一套可运行的无人机闭环仿真代码：MATLAB 包做数值实现，Simulink 模型做结构验证，两者独立编写同一组方程，互相对拍；核心循环还能生成 C，脱离 MATLAB 运行。目前包含四旋翼、固定翼、倾转四旋翼三个构型。
