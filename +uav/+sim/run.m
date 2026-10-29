@@ -33,23 +33,65 @@ Mcmd = [0; 0; 0];
 sat  = false;
 rNow = eval_ref(ref, 0);
 
+% 控制器选择：'pid'（默认级联）、'lqr'、'mpc'
+if isfield(s, 'ctrl')
+    ctrlName = s.ctrl;
+else
+    ctrlName = 'pid';
+end
+if isfield(s, 'b')
+    b = s.b;            % 基准对比时允许覆盖线性控制器权重
+else
+    b = uav.cfg.benchctrl();
+end
+dtc = s.dt*s.ctrlDiv;
+
+% 电机失效/降效：s.fault = struct('t', 5, 'k', 1, 'eta', 0.35)
+%   eta = 0 表示完全停转；0 < eta < 1 表示该电机推力与反扭矩按比例下降。
+fault = [];
+if isfield(s, 'fault'), fault = s.fault; end
+
 j = 0;
 for k = 1:N
     t = (k-1)*dt;
+    act = ones(4, 1);
+    if ~isempty(fault) && t >= fault.t
+        if isfield(fault, 'eta')
+            act(fault.k) = fault.eta;
+        else
+            act(fault.k) = 0;
+        end
+    end
 
     if mod(k-1, s.ctrlDiv) == 0
         rNow = eval_ref(ref, t);
-        [Tcmd, Mcmd, st] = uav.ctrl.cascade(x, rNow, p, c, st, s.dt*s.ctrlDiv);
-        [wcmd, sat] = uav.plant.mixer([Tcmd; Mcmd], p);
+        if any(act == 0)
+            % 有电机完全停转时偏航不可控：航向锁在当前值，偏航力矩交给伪逆
+            eNow = uav.plant.quat2euler(x(7:10));
+            rNow.psi = eNow(3);
+        end
+        switch ctrlName
+            case 'lqr'
+                [Tcmd, Mcmd, st] = uav.ctrl.lqr_ctrl(x, rNow, p, c, b, st, dtc);
+            case 'mpc'
+                [Tcmd, Mcmd, st] = uav.ctrl.mpc_ctrl(x, rNow, p, c, b, st, dtc);
+            otherwise
+                [Tcmd, Mcmd, st] = uav.ctrl.cascade(x, rNow, p, c, st, dtc);
+        end
+        if any(act == 0)
+            Mcmd(3) = 0;            % 反扭矩缺口配对不了，偏航力矩只能放弃
+        end
+        [wcmd, sat] = uav.plant.mixer_fault([Tcmd; Mcmd], p, act);
     end
 
     % 电机先按本步指令更新，再在整步内视为常值积分
     w = uav.plant.motor_step(w, wcmd, p, dt);
+    wEff = sqrt(act) .* w;          % 降效电机：转速照旧，推力与反扭矩按系数缩
 
-    k1 = deriv(x, w, p);
-    k2 = deriv(x + 0.5*dt*k1, w, p);
-    k3 = deriv(x + 0.5*dt*k2, w, p);
-    k4 = deriv(x + dt*k3, w, p);
+    k1 = deriv(x, wEff, p);
+    k2 = deriv(x + 0.5*dt*k1, wEff, p);
+    k3 = deriv(x + 0.5*dt*k2, wEff, p);
+    k4 = deriv(x + dt*k3, wEff, p);
 
     % 记录时刻 t 的状态（积分之前），与 Simulink 积分器输出的对齐方式一致
     if mod(k-1, s.logDiv) == 0
