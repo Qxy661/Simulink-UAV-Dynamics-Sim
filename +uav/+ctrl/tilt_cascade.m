@@ -1,4 +1,4 @@
-function [cmd, st] = tilt_cascade(x, ref, st, p, c, dt)
+function [cmd, st] = tilt_cascade(x, ref, st, p, c, dt, actF, allocMethod)
 %TILT_CASCADE  倾转四旋翼统一级联控制（空速调度 + 权限分配）。
 %   x   : 21 维状态，前 13 维与四旋翼/固定翼一致，14 短舱角，15:18 旋翼转速，19:21 舵面
 %   ref : 结构体，字段 p（NED 位置）、v、a、psi、h、V
@@ -22,6 +22,9 @@ w    = x(11:13);
 act  = x(19:21);
 beta = x(14);
 
+if nargin < 7 || isempty(actF), actF = ones(4, 1); end
+if nargin < 8 || isempty(allocMethod), allocMethod = 'pinv'; end
+
 Vb    = x(4:6);
 Vn    = R*Vb;
 V     = norm(Vb);
@@ -33,7 +36,20 @@ qbar  = 0.5*p.rho*V^2;
 % 转捩调度用参考空速而不是实测空速：实测空速低于计划时，若按它算 k，
 % k 会回落，短舱跟着往回收，机体在过渡段来回摆。用 ref.V 做开环调度，
 % 短舱按任务计划单调前倾，实测速度只作为内环的被控量。
-k = (ref.V - p.V1) / (p.V2 - p.V1);
+% 减速段曾改成按实测空速调度（仿 PX4 的 back-transition 判据），实测更差：
+% 短舱收得晚、机翼迎角一直偏大，机体变成稳定爬升，末端高度偏差 22 m。
+% 细节见 research/REPORT_r2_backtransition.md。
+%
+% 现在的折中：调度量取 min(实测, 参考+2)。参考空速领先实测 6–8 m/s 时，
+% 短舱会提前收回、迎角突然变大，这是 r5 里峰值 23.8 m 的来源；纯实测又会
+% 收得太晚。加 2 m/s 的领先帽，等价于「转捩走廊是真实速度的函数，
+% 但允许最多 2 m/s 的超前」，细节见 research/REPORT_r3_decel.md。
+if isfield(c, 'kSched') && strcmp(c.kSched, 'ref')
+    Vk = ref.V;
+else
+    Vk = min(V, ref.V + 2.0);
+end
+k = (Vk - p.V1) / (p.V2 - p.V1);
 k = max(0, min(1, k));
 
 % ---- 位置环 ----
@@ -44,6 +60,13 @@ st.ip = st.ip + ep*dt;
 st.ip = max(-c.iMax, min(c.iMax, st.ip));
 
 a = c.Kp.*ep + c.Kd.*ev + ref.a(:) + c.Ki.*st.ip;
+
+% 后向加速度受气动阻力限制：转捩段机翼已经在扛重力，任何大幅抬头都会让
+% 升力翻倍（13.7 m/s、24° 迎角时升力约 810 N），多出来的只能变成爬升。
+% 平飞可用的减速力就是阻力，约 1.5 m/s^2；超过它的需求一律截到 c.aDecMax。
+if k > 0.1 && a(1) < 0
+    a(1) = max(a(1), -c.aDecMax);
+end
 
 nh = norm(a(1:2));
 if nh > c.aHoriz
@@ -149,7 +172,7 @@ U2 = cb*Mxr + sb*Mzr;
 U3 = Myr / max(cb, 0.20);
 U4 = (-sb*Mxr + cb*Mzr) / p.kq;
 
-[om, ~] = uav.plant.tilt_mix(U1, U2, U3, U4, p);
+[om, ~] = uav.plant.tilt_mix_fault(U1, U2, U3, U4, p, actF, allocMethod);
 
 qs = max(qbar, 1.0);
 da = (1 - wRot) * M(1) / (qs*p.S*p.b*p.Clda);

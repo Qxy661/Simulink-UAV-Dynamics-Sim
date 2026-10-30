@@ -25,7 +25,7 @@ L{end+1} = 'alpha = atan2(Vb(3), Vb(1));';
 L{end+1} = 'h = -x(3);';
 L{end+1} = 'hdot = V*sin(att(2) - alpha);';
 L{end+1} = sprintf('qbar = 0.5*%s*V^2;', uav.model.fmt(p.rho));
-L{end+1} = sprintf('k = (r(12) - %s)/(%s - %s);', ...
+L{end+1} = sprintf('k = (min(V, r(12) + 2.0) - %s)/(%s - %s);', ...
     uav.model.fmt(p.V1), uav.model.fmt(p.V2), uav.model.fmt(p.V1));
 L{end+1} = 'k = min(max(k, 0), 1);';
 
@@ -169,8 +169,8 @@ A{end+1} = 'u = Vb(1); v = Vb(2); wb = Vb(3);';
 A{end+1} = 'pp = w(1); qq = w(2); rr = w(3);';
 A{end+1} = 'de = act(1); da = act(2); dr = act(3);';
 A{end+1} = 'V = norm(Vb); Ve = max(V, 1.0);';
-A{end+1} = 'alpha = atan2(wb, u);';
-A{end+1} = 'bsa = asin(min(max(v/Ve, -1), 1));';
+A{end+1} = 'alpha = asin(max(-0.34, min(0.34, wb/Ve)));';
+A{end+1} = 'bsa = asin(max(-0.34, min(0.34, v/Ve)));';
 A{end+1} = sprintf('qbar = 0.5*%s*V^2;', uav.model.fmt(p.rho));
 A{end+1} = sprintf('CL = %s + %s*alpha + %s*qq*%s/(2*Ve) + %s*de;', ...
     uav.model.fmt(p.CL0), uav.model.fmt(p.CLa), uav.model.fmt(p.CLq), ...

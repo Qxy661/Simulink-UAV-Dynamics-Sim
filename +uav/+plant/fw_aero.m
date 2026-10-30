@@ -1,4 +1,4 @@
-function [Fb, Mb] = fw_aero(Vb, w, act, p)
+function [Fb, Mb] = fw_aero(Vb, w, act, p, Wb)
 %FW_AERO  固定翼气动力与力矩。
 %   Vb  : 机体系速度 [u; v; w] (m/s)
 %   w   : 机体系角速度 [p; q; r] (rad/s)
@@ -10,6 +10,10 @@ function [Fb, Mb] = fw_aero(Vb, w, act, p)
 %   气动角：alpha = atan2(w, u)，beta = asin(v/V)。
 %   升力沿稳定性 z 轴负方向（机腹向上为负），阻力沿 -x，再按 alpha 转到机体轴。
 
+% 风：气动力量按相对气流算（Wb 为机体系风速；NED 风速要先转到机体）
+if nargin < 5 || isempty(Wb), Wb = zeros(3, 1); end
+Vb = Vb(:) - Wb(:);
+
 u = Vb(1); v = Vb(2); wb = Vb(3);
 p_ = w(1); q = w(2); r = w(3);
 thr = act(1); de = act(2); da = act(3); dr = act(4);
@@ -17,8 +21,12 @@ thr = act(1); de = act(2); da = act(3); dr = act(4);
 V = norm(Vb);
 Ve = max(V, 1.0);                       % 低速时避免除零，只在悬停/起飞段生效
 
-alpha = atan2(wb, u);
-beta  = asin(max(-1, min(1, v / Ve)));
+% 线性气动只在失速前有效：悬停遇侧风时相对气流可以接近垂直于机身，
+% atan2(0,-2) 这种退化情形会给出 180°，线性 CL/CY 会算出几十牛的气动力
+% 把整机掀翻（r17 实测 6 m/s 侧风滚转 141°）。这里用 asin 速度分量比，
+% 并把两个角都截到 ±19.5°——相当于"失速后气动力不再增长"的最粗模型。
+alpha = asin(max(-0.34, min(0.34, wb / Ve)));
+beta  = asin(max(-0.34, min(0.34, v / Ve)));
 qbar  = 0.5 * p.rho * V^2;
 
 CL = p.CL0 + p.CLa*alpha + p.CLq*q*p.c/(2*Ve) + p.CLde*de;

@@ -48,7 +48,7 @@ uav.demo('yaw');
 uav.demo('fw');            % fixed wing: climb, turn, accelerate
 uav.demo('tilt');          % tilt rotor: hover, nacelle tilt, cruise
 uav.demo('wind');          % PID vs ESO under gusts
-runtests('tests')          % 66 tests, about 60 s
+runtests('tests')          % 88 tests, about 68 s
 ```
 
 Everything at once — tests, three model cross-checks, C runner cross-check:

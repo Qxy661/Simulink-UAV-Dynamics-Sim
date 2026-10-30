@@ -84,6 +84,20 @@ classdef tEstimation < matlab.unittest.TestCase
             tc.verifyLessThan(max(abs(rad2deg(mean(attE - out.eul(tail, :))))), 2);
         end
 
+        function flowBiasGrowsWithSpeed(tc)
+            % 光流的 2% 标度误差是"相对速度"的误差：22 m/s 时等于 0.44 m/s 的假速度，
+            % 5 m/s 时只有 0.1 m/s。REPORT_r12 里巡航位置 RMS 因此从 0.713 涨到 4.696 m。
+            q = [1;0;0;0];
+            mRef = [0.42;0;0.91]; mRef = mRef / norm(mRef);
+            rng(11);
+            zSlow = uav.sens.flow_sample(q, [5;0;0], 0.03, 1.02);
+            rng(11);
+            zFast = uav.sens.flow_sample(q, [22;0;0], 0.03, 1.02);
+            tc.verifyEqual(zSlow(1) - 5, 0.02*5, 'AbsTol', 0.06);
+            tc.verifyEqual(zFast(1) - 22, 0.02*22, 'AbsTol', 0.06);
+            tc.verifyGreaterThan(abs(zFast(1) - 22), 3*abs(zSlow(1) - 5));
+        end
+
         function repeatedRunIsIdentical(tc)
             % 固定种子下两次运行逐位相同
             s = tc.fastCfg(10);

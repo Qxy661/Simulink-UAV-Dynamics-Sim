@@ -2,7 +2,7 @@
  * File: fw_sim.c
  *
  * MATLAB Coder version            : 24.1
- * C/C++ source code generated on  : 2026-10-30 21:47:46
+ * C/C++ source code generated on  : 2026-10-31 05:20:23
  */
 
 /* Include Files */
@@ -35,9 +35,9 @@ static void deriv(const double x[13], const double act[4], double xd[13])
   double R[9];
   double q[4];
   double B[3];
+  double Vb[3];
   double b_q[3];
   double b_x[3];
-  double wd[3];
   double CL;
   double D;
   double L;
@@ -64,6 +64,7 @@ static void deriv(const double x[13], const double act[4], double xd[13])
   /*    气动角：alpha = atan2(w, u)，beta = asin(v/V)。 */
   /*    升力沿稳定性 z 轴负方向（机腹向上为负），阻力沿 -x，再按 alpha
    * 转到机体轴。 */
+  /*  风：气动力量按相对气流算（Wb 为机体系风速；NED 风速要先转到机体） */
   scale = 3.3121686421112381E-170;
   absxk = fabs(x[3]);
   if (absxk > 3.3121686421112381E-170) {
@@ -98,13 +99,24 @@ static void deriv(const double x[13], const double act[4], double xd[13])
     Ve = 1.0;
   }
   /*  低速时避免除零，只在悬停/起飞段生效 */
-  alpha = rt_atan2d_snf(x[5], x[3]);
-  CL = x[4] / Ve;
-  if ((CL >= 1.0) || rtIsNaN(CL)) {
-    CL = 1.0;
+  /*  线性气动只在失速前有效：悬停遇侧风时相对气流可以接近垂直于机身， */
+  /*  atan2(0,-2) 这种退化情形会给出 180°，线性 CL/CY 会算出几十牛的气动力 */
+  /*  把整机掀翻（r17 实测 6 m/s 侧风滚转 141°）。这里用 asin 速度分量比， */
+  /*  并把两个角都截到 ±19.5°——相当于"失速后气动力不再增长"的最粗模型。 */
+  CL = x[5] / Ve;
+  if ((CL >= 0.34) || rtIsNaN(CL)) {
+    CL = 0.34;
   }
-  if (CL <= -1.0) {
-    CL = -1.0;
+  if (CL <= -0.34) {
+    CL = -0.34;
+  }
+  alpha = asin(CL);
+  CL = x[4] / Ve;
+  if ((CL >= 0.34) || rtIsNaN(CL)) {
+    CL = 0.34;
+  }
+  if (CL <= -0.34) {
+    CL = -0.34;
   }
   beta = asin(CL);
   qbar = 0.6125 * (V * V);
@@ -194,30 +206,30 @@ static void deriv(const double x[13], const double act[4], double xd[13])
   for (i = 0; i < 3; i++) {
     CL = x[i + 10];
     q[i + 1] = CL;
-    wd[i] = (a[i] * x[10] + a[i + 3] * x[11]) + a[i + 6] * x[12];
+    Vb[i] = (a[i] * x[10] + a[i + 3] * x[11]) + a[i + 6] * x[12];
     V += x[i + 7] * CL;
   }
   CL = qbar * 0.55 * 2.5;
   B[0] = CL * (((-0.09 * beta + -0.5 * x[10] * 2.5 / (2.0 * Ve)) +
                 0.08 * x[12] * 2.5 / (2.0 * Ve)) +
                0.18 * act[2]) -
-         (wd[2] * x[11] - wd[1] * x[12]);
+         (Vb[2] * x[11] - Vb[1] * x[12]);
   B[1] = qbar * 0.55 * 0.22 *
              (((-0.8 * alpha + 0.05) + -12.0 * x[11] * 0.22 / (2.0 * Ve)) +
               -1.2 * act[1]) -
-         (wd[0] * x[12] - wd[2] * x[10]);
+         (Vb[0] * x[12] - Vb[2] * x[10]);
   B[2] = CL * (((0.06 * beta + -0.03 * x[10] * 2.5 / (2.0 * Ve)) +
                 -0.12 * x[12] * 2.5 / (2.0 * Ve)) +
                0.09 * act[3]) -
-         (wd[1] * x[10] - wd[0] * x[11]);
-  wd[1] = B[1] - B[0] * 0.0;
-  wd[2] = (B[2] - B[0] * 0.0) - wd[1] * 0.0;
-  wd[2] /= 0.85;
-  wd[0] = B[0] - wd[2] * 0.0;
-  wd[1] -= wd[2] * 0.0;
-  wd[1] /= 0.6;
-  wd[0] -= wd[1] * 0.0;
-  wd[0] /= 0.45;
+         (Vb[1] * x[10] - Vb[0] * x[11]);
+  Vb[1] = B[1] - B[0] * 0.0;
+  Vb[2] = (B[2] - B[0] * 0.0) - Vb[1] * 0.0;
+  Vb[2] /= 0.85;
+  Vb[0] = B[0] - Vb[2] * 0.0;
+  Vb[1] -= Vb[2] * 0.0;
+  Vb[1] /= 0.6;
+  Vb[0] -= Vb[1] * 0.0;
+  Vb[0] /= 0.45;
   B[0] = ((-D * b_Xa_tmp + L * Xa_tmp) + act[0] * 40.0) / 5.0;
   B[1] = qbar * 0.55 * (-0.6 * beta + 0.19 * act[3]) / 5.0;
   B[2] = (-D * Xa_tmp - L * b_Xa_tmp) / 5.0;
@@ -230,7 +242,7 @@ static void deriv(const double x[13], const double act[4], double xd[13])
     xd[i + 3] = (B[i] - b_x[i]) +
                 ((R[3 * i] * 0.0 + R[3 * i + 1] * 0.0) + R[3 * i + 2] * 9.81);
     xd[i + 7] = 0.5 * ((x[6] * x[i + 10] + 0.0 * x[i + 7]) + b_q[i]);
-    xd[i + 10] = wd[i];
+    xd[i + 10] = Vb[i];
   }
 }
 

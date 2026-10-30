@@ -13,8 +13,8 @@ L{end+1} = 'u = Vb(1); vv = Vb(2); wb = Vb(3);';
 L{end+1} = 'pp = w(1); qq = w(2); rr = w(3);';
 L{end+1} = 'de = act(1); da = act(2); dr = act(3);';
 L{end+1} = 'V = norm(Vb); Ve = max(V, 1.0);';
-L{end+1} = 'alpha = atan2(wb, u);';
-L{end+1} = 'bsa = asin(min(max(vv/Ve, -1), 1));';
+L{end+1} = 'alpha = asin(max(-0.34, min(0.34, wb/Ve)));';
+L{end+1} = 'bsa = asin(max(-0.34, min(0.34, vv/Ve)));';
 L{end+1} = sprintf('qbar = 0.5*%s*V^2;', uav.model.fmt(p.rho));
 
 % 气动

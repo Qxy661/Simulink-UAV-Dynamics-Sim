@@ -4,7 +4,7 @@
 
 ```matlab
 addpath('/path/to/drone-simulink');
-runtests('tests')            % 66 项，约 85 s
+runtests('tests')            % 88 项，约 68 s
 cd scripts
 build_quad_model
 validate_model
@@ -20,7 +20,7 @@ uav.demo('tilt')
 
 ## 测试清单
 
-`runtests('tests')` 共 66 项：`tPlant` 13 项、`tController` 7 项、`tClosedLoop` 5 项、`tFixedWing` 13 项、`tTilt` 11 项、`tEstimation` 8 项、`tDisturbance` 9 项。全部通过。
+`runtests('tests')` 共 88 项：`tPlant` 13 项、`tController` 7 项、`tClosedLoop` 5 项、`tFixedWing` 13 项、`tTilt` 32 项、`tEstimation` 9 项、`tDisturbance` 9 项。全部通过。
 
 ### tPlant（13，四旋翼）
 
@@ -80,7 +80,7 @@ uav.demo('tilt')
 | quaternionStaysNormalized | 12 s 全程四元数范数偏差小于 1e-12 |
 | repeatedRunIsIdentical | 同一输入跑两次，结果逐位相同 |
 
-### tTilt（11，倾转四旋翼）
+### tTilt（30，倾转四旋翼）
 
 | 测试 | 断言内容 |
 | --- | --- |
@@ -94,7 +94,14 @@ uav.demo('tilt')
 | missionHoldsAltitude | 45 s 任务高度偏差小于 1 m |
 | missionReachesCruiseTilt | β 超过 50°，末端空速大于 9.5 m/s，俯仰不超过 20° |
 | missionTracksReference | 末端水平误差小于 2 m |
+| backTransitionRespectsEnergyBudget | 16 m/s 往返减速段的高度峰值落在 [0.5, 1.6]·V²/(2g) 区间（能量界，见 `research/REPORT_r3_energy.md`） |
 | repeatedRunIsIdentical | 同一输入跑两次，21 维状态逐位相同 |
+| deadRotorIsNotCommanded | 1 号电机完全失效时，分配器给它 0 转速、0 推力，其余三台仍能凑出总推力 |
+| faultHardReducesDrift | 降效 35% 时按"完全失效"处理，巡航段位置漂移小于 3 m、高度偏差小于 2 m（对照：按真实降效分配 4.76 m，见 `research/REPORT_r4_fault.md`） |
+| faultDetectorLatency | 残差检测器在第 3 拍（门限 60 rad/s、保持 3 拍）判死失效电机，其余三台不误报 |
+| detectedFaultMatchesOracle | 只靠残差检测（不告知 η）与先知先觉策略的巡航段漂移差小于 0.3 m（实测 0 m，检测延迟 40 ms，见 `research/REPORT_r5_detection.md`） |
+| thrustMarginFailsDesignRule | 本配置推力裕度落在 (1.5, 2.0) 区间；单桨失效存活要求 wMax ≥ √2·hoverW ≈ 1229 rad/s，当前 1100 不满足（见 `research/REPORT_r6_hover_fault.md`） |
+| hoverSurvivesWithAdequateMargin | 把 wMax 提到 1300（裕度 2.24）后，20 m 悬停断 1 号机：高度损失小于 1 m、漂移小于 5 m、滚转小于 45° |
 
 ### tEstimation（8，传感器与 EKF）
 
@@ -240,3 +247,19 @@ ESO 的扰动估计 `z3` 稳态 [0.203 0.095 −0.019] m/s²，真值 `drag*W/m`
 - 电机时间常数 0.02 s、舵机 0.05 s 对应常见小型电动模型，未做阶跃辨识。
 - 姿态控制在小角度下工作。超过 60° 的机动没有验证。
 - 固定翼增益只在 18 m/s 平飞点整定。
+
+## 能量一致减速（r16）
+
+| 测试 | 断言 |
+| --- | --- |
+| `energyProfileDecelTracksReference` | 沿能量轨迹减速：减速段峰值偏差 <15 m，末端悬停偏差 <1.5 m |
+
+实测 10.72 m / 0.36 m；对照定高方案 23.81 m。
+
+## 转捩段侧风（r17）
+
+| 测试 | 断言 |
+| --- | --- |
+| `esoReducesPitchInTransitionWind` | 4 m/s 侧风下 ESO 把转捩段俯仰峰值压到无 ESO 的 0.7 倍以下（实测 18.2°→8.4°） |
+
+轨迹误差不变（9.65→9.36 m），见 `research/REPORT_r17_transition_wind.md`。

@@ -14,8 +14,8 @@ L{end+1} = sprintf('rho = %s; S = %s; b = %s; c = %s;', ...
 L{end+1} = sprintf('Tmax = %s;', uav.model.fmt(p.Tmax));
 L{end+1} = 'thr = act(1); de = act(2); da = act(3); dr = act(4);';
 L{end+1} = 'V = max(norm(Vb), 1);';
-L{end+1} = 'alpha = atan2(wb, u);';
-L{end+1} = 'beta = asin(max(-1, min(1, v/V)));';
+L{end+1} = 'alpha = asin(max(-0.34, min(0.34, wb/V)));';
+L{end+1} = 'beta = asin(max(-0.34, min(0.34, v/V)));';
 L{end+1} = 'qbar = 0.5*rho*V^2;';
 L{end+1} = sprintf('CL = %s + %s*alpha + %s*w(2)*c/(2*V) + %s*de;', ...
     uav.model.fmt(p.CL0), uav.model.fmt(p.CLa), uav.model.fmt(p.CLq), uav.model.fmt(p.CLde));

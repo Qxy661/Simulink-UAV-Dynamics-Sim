@@ -1,4 +1,4 @@
-function [Fb, Mb] = tilt_wrench(x, om, act, beta, p)
+function [Fb, Mb] = tilt_wrench(x, om, act, beta, p, Wb)
 %TILT_WRENCH  倾转四旋翼的机体力与力矩。
 %   x    : 21 维状态，只用 4:6（机体速度）与 11:13（角速度）
 %   om   : 4x1 旋翼转速 (rad/s)
@@ -21,7 +21,8 @@ function [Fb, Mb] = tilt_wrench(x, om, act, beta, p)
 Vb = x(4:6);
 w  = x(11:13);
 
-[Fa, Ma] = uav.plant.fw_aero(Vb, w, [0; act(:)], p);
+if nargin < 6 || isempty(Wb), Wb = zeros(3, 1); end
+[Fa, Ma] = uav.plant.fw_aero(Vb, w, [0; act(:)], p, Wb);
 
 T  = p.kt * om(:).^2;
 U1 = sum(T);
@@ -29,12 +30,25 @@ U2 = -sum(p.ry(:) .* T);
 U3 = sum(p.rx(:) .* T);
 U4 = sum(p.spin(:) .* T);
 
-d  = [sin(beta); 0; -cos(beta)];
-Fr = d * U1;
+% 短舱角可以是标量（四台同角）或 4x1（差动微调，见 REPORT_r11）
+if isscalar(beta)
+    d  = [sin(beta); 0; -cos(beta)];
+    Fr = d * U1;
+    Mr = [ cos(beta)*U2 - p.kq*sin(beta)*U4;
+           cos(beta)*U3;
+           sin(beta)*U2 + p.kq*cos(beta)*U4 ];
+else
+    b  = beta(:);
+    sb = sin(b);
+    cb = cos(b);
+    Fr = [ sum(T .* sb); 0; -sum(T .* cb) ];
 
-Mr = [ cos(beta)*U2 - p.kq*sin(beta)*U4;
-       cos(beta)*U3;
-       sin(beta)*U2 + p.kq*cos(beta)*U4 ];
+    % 推力绕机体轴：r_i x (T_i d_i)。z 分量正是差动短舱给偏航的手段。
+    Mx = -sum(p.ry(:) .* T .* cb);
+    My =  sum(p.rx(:) .* T .* cb);
+    Mz = -sum(p.ry(:) .* T .* sb) + p.kq * sum(p.spin(:) .* T .* cb);
+    Mr = [Mx; My; Mz];
+end
 
 Fb = Fa + Fr;
 Mb = Ma + Mr;

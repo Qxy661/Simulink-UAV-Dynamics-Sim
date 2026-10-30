@@ -19,3 +19,4 @@ out/
 # 逐速度的完整轨迹体积大，只入库 *_summary.csv
 research/results/csv/r*_*hz.csv
 research/results/csv/r2_roundtrip.csv
+.tmp/

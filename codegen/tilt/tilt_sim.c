@@ -2,7 +2,7 @@
  * File: tilt_sim.c
  *
  * MATLAB Coder version            : 24.1
- * C/C++ source code generated on  : 2026-10-30 21:47:54
+ * C/C++ source code generated on  : 2026-10-31 05:20:27
  */
 
 /* Include Files */
@@ -12,7 +12,6 @@
 #include "tilt_sim_data.h"
 #include "tilt_sim_initialize.h"
 #include "tilt_sim_internal_types.h"
-#include "tilt_sim_rtwutil.h"
 #include "rt_nonfinite.h"
 #include <emmintrin.h>
 #include <math.h>
@@ -39,10 +38,10 @@ static void deriv(const double x[21], const double cmd[8], double xd[21])
   double T[4];
   double b_x[4];
   double B[3];
+  double Vb[3];
   double c_d_tmp[3];
   double c_x[3];
   double d_x[3];
-  double wd[3];
   double D;
   double L;
   double R_tmp;
@@ -50,11 +49,9 @@ static void deriv(const double x[21], const double cmd[8], double xd[21])
   double U4;
   double V;
   double Ve;
-  double Xa_tmp;
   double absxk;
   double alpha;
   double b_R_tmp;
-  double b_Xa_tmp;
   double b_d_tmp;
   double beta;
   double d_tmp;
@@ -94,6 +91,7 @@ static void deriv(const double x[21], const double cmd[8], double xd[21])
   /*    气动角：alpha = atan2(w, u)，beta = asin(v/V)。 */
   /*    升力沿稳定性 z 轴负方向（机腹向上为负），阻力沿 -x，再按 alpha
    * 转到机体轴。 */
+  /*  风：气动力量按相对气流算（Wb 为机体系风速；NED 风速要先转到机体） */
   scale = 3.3121686421112381E-170;
   absxk = fabs(x[3]);
   if (absxk > 3.3121686421112381E-170) {
@@ -128,22 +126,31 @@ static void deriv(const double x[21], const double cmd[8], double xd[21])
     Ve = 1.0;
   }
   /*  低速时避免除零，只在悬停/起飞段生效 */
-  alpha = rt_atan2d_snf(x[5], x[3]);
-  absxk = x[4] / Ve;
-  if ((absxk >= 1.0) || rtIsNaN(absxk)) {
-    absxk = 1.0;
+  /*  线性气动只在失速前有效：悬停遇侧风时相对气流可以接近垂直于机身， */
+  /*  atan2(0,-2) 这种退化情形会给出 180°，线性 CL/CY 会算出几十牛的气动力 */
+  /*  把整机掀翻（r17 实测 6 m/s 侧风滚转 141°）。这里用 asin 速度分量比， */
+  /*  并把两个角都截到 ±19.5°——相当于"失速后气动力不再增长"的最粗模型。 */
+  t = x[5] / Ve;
+  if ((t >= 0.34) || rtIsNaN(t)) {
+    t = 0.34;
   }
-  if (absxk <= -1.0) {
-    absxk = -1.0;
+  if (t <= -0.34) {
+    t = -0.34;
   }
-  beta = asin(absxk);
+  alpha = asin(t);
+  t = x[4] / Ve;
+  if ((t >= 0.34) || rtIsNaN(t)) {
+    t = 0.34;
+  }
+  if (t <= -0.34) {
+    t = -0.34;
+  }
+  beta = asin(t);
   qbar = 0.6125 * (V * V);
   V = ((5.0 * alpha + 0.45) + 3.9 * x[11] * 0.34 / (2.0 * Ve)) + 0.4 * x[18];
   D = qbar * 1.6 * (0.045 * (V * V) + 0.025);
   L = qbar * 1.6 * V;
   /*  稳定性轴到机体轴 */
-  Xa_tmp = sin(alpha);
-  b_Xa_tmp = cos(alpha);
   r = _mm_loadu_pd(&x[14]);
   r1 = _mm_set1_pd(2.6E-5);
   _mm_storeu_pd(&T[0], _mm_mul_pd(r1, _mm_mul_pd(r, r)));
@@ -162,6 +169,7 @@ static void deriv(const double x[21], const double cmd[8], double xd[21])
   T[1] = -T[1];
   T[3] = -T[3];
   U4 = ((T[0] + T[1]) + T[2]) + T[3];
+  /*  短舱角可以是标量（四台同角）或 4x1（差动微调，见 REPORT_r11） */
   d_tmp = cos(x[13]);
   b_d_tmp = sin(x[13]);
   /* RIGID_BODY  刚体六自由度方程（机体 FRD，世界 NED）。 */
@@ -238,9 +246,9 @@ static void deriv(const double x[21], const double cmd[8], double xd[21])
   T[0] = 0.0;
   /* QMUL  Hamilton 四元数乘法 a (x) b。 */
   /*    与 [w;x;y;z] 排列一致，用于 qdot = 0.5*q (x) [0;omega]。 */
-  absxk = (cmd[7] - x[13]) / 0.15;
-  if ((absxk >= 0.52359877559829882) || rtIsNaN(absxk)) {
-    absxk = 0.52359877559829882;
+  t = (cmd[7] - x[13]) / 0.15;
+  if ((t >= 0.52359877559829882) || rtIsNaN(t)) {
+    t = 0.52359877559829882;
   }
   c_d_tmp[0] = b_d_tmp * U1;
   c_d_tmp[1] = 0.0 * U1;
@@ -248,55 +256,57 @@ static void deriv(const double x[21], const double cmd[8], double xd[21])
   c_x[0] = x[5] * x[11] - x[4] * x[12];
   c_x[1] = x[3] * x[12] - x[5] * x[10];
   c_x[2] = x[4] * x[10] - x[3] * x[11];
-  scale = 0.0;
+  absxk = 0.0;
   for (i = 0; i < 3; i++) {
     V = x[i + 10];
     T[i + 1] = V;
-    wd[i] = (a[i] * x[10] + a[i + 3] * x[11]) + a[i + 6] * x[12];
-    scale += x[i + 7] * V;
+    Vb[i] = (a[i] * x[10] + a[i + 3] * x[11]) + a[i + 6] * x[12];
+    absxk += x[i + 7] * V;
   }
-  V = qbar * 1.6 * 3.6;
-  B[0] = (V * (((-0.09 * beta + -0.5 * x[10] * 3.6 / (2.0 * Ve)) +
-                0.08 * x[12] * 3.6 / (2.0 * Ve)) +
-               0.18 * x[19]) +
+  scale = qbar * 1.6 * 3.6;
+  B[0] = (scale * (((-0.09 * beta + -0.5 * x[10] * 3.6 / (2.0 * Ve)) +
+                    0.08 * x[12] * 3.6 / (2.0 * Ve)) +
+                   0.18 * x[19]) +
           (d_tmp * -y - 0.019230769230769232 * b_d_tmp * U4)) -
-         (wd[2] * x[11] - wd[1] * x[12]);
+         (Vb[2] * x[11] - Vb[1] * x[12]);
   B[1] = (qbar * 1.6 * 0.34 *
               (((-0.8 * alpha + 0.05) + -12.0 * x[11] * 0.34 / (2.0 * Ve)) +
                -1.2 * x[18]) +
           d_tmp * (((b_x[0] + b_x[1]) + b_x[2]) + b_x[3])) -
-         (wd[0] * x[12] - wd[2] * x[10]);
-  B[2] = (V * (((0.06 * beta + -0.03 * x[10] * 3.6 / (2.0 * Ve)) +
-                -0.12 * x[12] * 3.6 / (2.0 * Ve)) +
-               0.09 * x[20]) +
+         (Vb[0] * x[12] - Vb[2] * x[10]);
+  B[2] = (scale * (((0.06 * beta + -0.03 * x[10] * 3.6 / (2.0 * Ve)) +
+                    -0.12 * x[12] * 3.6 / (2.0 * Ve)) +
+                   0.09 * x[20]) +
           (b_d_tmp * -y + 0.019230769230769232 * d_tmp * U4)) -
-         (wd[1] * x[10] - wd[0] * x[11]);
-  wd[1] = B[1] - B[0] * 0.0;
-  wd[2] = (B[2] - B[0] * 0.0) - wd[1] * 0.0;
-  wd[2] /= 1.6;
-  wd[0] = B[0] - wd[2] * 0.0;
-  wd[1] -= wd[2] * 0.0;
-  wd[1] /= 1.2;
-  wd[0] -= wd[1] * 0.0;
-  wd[0] /= 0.9;
-  B[0] = -D * b_Xa_tmp + L * Xa_tmp;
+         (Vb[1] * x[10] - Vb[0] * x[11]);
+  Vb[1] = B[1] - B[0] * 0.0;
+  Vb[2] = (B[2] - B[0] * 0.0) - Vb[1] * 0.0;
+  Vb[2] /= 1.6;
+  Vb[0] = B[0] - Vb[2] * 0.0;
+  Vb[1] -= Vb[2] * 0.0;
+  Vb[1] /= 1.2;
+  Vb[0] -= Vb[1] * 0.0;
+  Vb[0] /= 0.9;
+  scale = sin(alpha);
+  V = cos(alpha);
+  B[0] = -D * V + L * scale;
   B[1] = qbar * 1.6 * (-0.6 * beta + 0.19 * x[20]);
-  B[2] = -D * Xa_tmp - L * b_Xa_tmp;
+  B[2] = -D * scale - L * V;
   d_x[0] = x[8] * x[12] - x[9] * x[11];
   d_x[1] = x[9] * x[10] - x[7] * x[12];
   d_x[2] = x[7] * x[11] - x[8] * x[10];
-  xd[6] = 0.5 * (x[6] * 0.0 - scale);
+  xd[6] = 0.5 * (x[6] * 0.0 - absxk);
   for (i = 0; i < 3; i++) {
     xd[i] = (R[i] * x[3] + R[i + 3] * x[4]) + R[i + 6] * x[5];
     xd[i + 3] = ((B[i] + c_d_tmp[i]) / 8.0 - c_x[i]) +
                 ((R[3 * i] * 0.0 + R[3 * i + 1] * 0.0) + R[3 * i + 2] * 9.81);
     xd[i + 7] = 0.5 * ((x[6] * T[i + 1] + 0.0 * x[i + 7]) + d_x[i]);
-    xd[i + 10] = wd[i];
+    xd[i + 10] = Vb[i];
   }
-  if (absxk <= -0.52359877559829882) {
+  if (t <= -0.52359877559829882) {
     xd[13] = -0.52359877559829882;
   } else {
-    xd[13] = absxk;
+    xd[13] = t;
   }
   r = _mm_set1_pd(0.02);
   _mm_storeu_pd(
