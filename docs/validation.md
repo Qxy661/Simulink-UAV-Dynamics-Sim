@@ -4,7 +4,7 @@
 
 ```matlab
 addpath('/path/to/drone-simulink');
-runtests('tests')            % 49 项，约 35 s
+runtests('tests')            % 57 项，约 75 s
 cd scripts
 build_quad_model
 validate_model
@@ -20,7 +20,7 @@ uav.demo('tilt')
 
 ## 测试清单
 
-`runtests('tests')` 共 49 项：`tPlant` 13 项、`tController` 7 项、`tClosedLoop` 5 项、`tFixedWing` 13 项、`tTilt` 11 项。全部通过，总耗时 36.9 s。
+`runtests('tests')` 共 57 项：`tPlant` 13 项、`tController` 7 项、`tClosedLoop` 5 项、`tFixedWing` 13 项、`tTilt` 11 项、`tEstimation` 8 项。全部通过。
 
 ### tPlant（13，四旋翼）
 
@@ -96,6 +96,19 @@ uav.demo('tilt')
 | missionTracksReference | 末端水平误差小于 2 m |
 | repeatedRunIsIdentical | 同一输入跑两次，21 维状态逐位相同 |
 
+### tEstimation（8，传感器与 EKF）
+
+| 测试 | 断言内容 |
+| --- | --- |
+| gyroBiasConverges | 零偏 0.02 rad/s，60 s 内三轴估计误差小于 10% |
+| gpsDropoutDriftsSlowly | 15–45 s 丢星，靠光流维持，末端水平漂移小于 5 m |
+| idealSensorsTrackHover | 全零噪声闭环，30 s 悬停末端误差小于 10 cm |
+| flowAidingImprovesHover | 同样噪声下，开光流后末段 RMS 小于关闭时的一半 |
+| estimateUnbiasedInHover | 悬停末段位置估计误差均值小于 10 cm |
+| hoverAccuracyIsSubDecimetre | 默认噪声 60 s 悬停，末段 RMS 小于 0.12 m |
+| attitudeEstimateStaysSmall | 姿态估计误差末段均值小于 2° |
+| repeatedRunIsIdentical | 固定种子下两次运行 13 维状态逐位相同 |
+
 ## 演示结果
 
 `uav.demo` 三个四旋翼案例的实测输出：
@@ -128,6 +141,22 @@ hover 的 3 cm 误差来自 1 m 高度爬升后的稳态偏差，垂向积分项
 | 转速峰值 | 878 rad/s，无饱和 |
 
 包线（同任务换巡航速度，40 s）：8 m/s 高度偏差 0.50 m、10 m/s 0.33 m、12 m/s 15.61 m、14 m/s 126.26 m、16 m/s 发散。12 m/s 以上机翼升力不足以补旋翼竖直分量的缺口，属于配置边界。细节见 [tiltrotor.md](tiltrotor.md)。
+
+## 状态估计闭环
+
+`uav.sim.run_est`，60 s 悬停，控制器只用 EKF 估计值：
+
+| 量 | 结果 |
+| --- | --- |
+| 位置 RMS（30 s 后） | 0.079 m |
+| 位置最大偏差 | 0.130 m |
+| 末端误差 | 0.078 m |
+| 最大倾角 | 6.0° |
+| 陀螺零偏估计 | [0.0199, −0.0149, 0.0099] rad/s |
+| GPS 丢星 30 s（靠光流） | 末端漂移 0.09 m，最大 0.15 m |
+| 理想传感器闭环 | 末端 0.052 m，RMS 0.055 m |
+
+对比：只给 GPS 位置时速度估计有 0.53 m/s 常值偏差、悬停误差 0.87 m；加 GPS 地速后降到 0.01 m/s 与 0.20 m；再加 0.05 m/s 的下视光流，误差 0.079 m。光流噪声降到 0.02 m/s 只到 0.065 m，说明剩余误差是位置环对传感器噪声的响应，不是调参问题。细节见 [estimation.md](estimation.md)。
 
 ## 脚本与 Simulink 对拍
 

@@ -195,7 +195,27 @@ Step/Psi -> RefMux -> Ctrl -> TM -> Mixer -> Motors -> Wrench
 | `+uav/+env/tilt_ref.m` | 倾转任务参考（悬停-转捩-巡航） |
 | `+uav/+env/tilt_ref_v.m` | 参数化参考，用于包线扫描 |
 | `+uav/+sim/run_tilt.m` | 21 维状态 RK4 闭环仿真 |
+| `+uav/+sens/imu_sample.m` | 陀螺/加计采样：常值零偏 + 白噪声 |
+| `+uav/+sens/gps_sample.m` | 位置与地速采样，水平/垂直噪声分开 |
+| `+uav/+sens/baro_sample.m` | 气压高度采样 |
+| `+uav/+sens/mag_sample.m` | 三轴磁向量采样 |
+| `+uav/+sens/flow_sample.m` | 下视光流：机体系水平速度 + 标度误差 |
+| `+uav/+est/ekf_init.m` | 15 维误差状态初始化 |
+| `+uav/+est/ekf_predict.m` | 四元数与速度传播、F/Q 构造 |
+| `+uav/+est/ekf_correct.m` | Joseph 形式修正与姿态注入 |
+| `+uav/+est/ekf_update_gps.m` | GPS 位置更新 |
+| `+uav/+est/ekf_update_vel.m` | GPS 地速更新 |
+| `+uav/+est/ekf_update_baro.m` | 气压高度更新 |
+| `+uav/+est/ekf_update_mag.m` | 三轴磁向量更新 |
+| `+uav/+est/ekf_update_accel.m` | 加计姿态更新，双重门控 |
+| `+uav/+est/ekf_update_flow.m` | 光流机体系速度更新 |
+| `+uav/+sim/run_est.m` | 带传感器的闭环仿真（1 kHz 控制） |
 
+## 状态估计
+
+`+uav/+sens/` 造传感器量测，`+uav/+est/` 做 15 维误差状态 EKF，`+uav/+sim/run_est.m` 把两者接进闭环。误差状态顺序 `[δp; δv; δθ; δbg; δba]`，姿态四元数单独维护；量测有 GPS 位置、GPS 地速、气压高度、三轴磁向量、带门控的加计姿态、光流机体系速度。
+
+控制器只吃 `[p̂; v̂; q̂; ω − b̂g]`，与真值闭环共用同一个 `uav.ctrl.cascade`。控制周期取 1 kHz（`ctrlDiv = 1`）：100 Hz 下估计滞后 5–10 ms 就足以让姿态环失稳。细节与实测精度见 [estimation.md](estimation.md)。
 ## C 代码生成
 
 `+uav/+codegen/quad_sim.m` 是四旋翼闭环主循环的代码生成入口，逻辑与 `uav.sim.run` 逐行对应，只把参考、控制器状态、参数都收成固定尺寸的局部量。`scripts/codegen_quad.m` 调 `codegen -config:lib -GenCodeOnly`，输出到 `codegen/`；`c/main.c` 链接这些文件构成独立运行器，`c/Makefile` 用 gcc 构建。
