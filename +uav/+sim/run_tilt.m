@@ -102,8 +102,23 @@ for kk = 1:N
             aEso = rNow.a;
             rNow.a = rNow.a - dHatNow;
         end
+        % 控制输入摄动（r22）：只影响控制器看到的量测，不影响真值积分。
+        % attBias 是加在估计四元数上的小角偏置（弧度），posNoise 是位置白噪
+        % 标准差。用来回答"估计器差多少会出事"，而不是只测真值闭环。
+        xCtrl = x;
+        if isfield(s, 'pert')
+            if isfield(s.pert, 'posNoise') && s.pert.posNoise > 0
+                xCtrl(1:3) = xCtrl(1:3) + s.pert.posNoise*randn(3,1);
+            end
+            if isfield(s.pert, 'posBias'), xCtrl(1:3) = xCtrl(1:3) + s.pert.posBias; end
+            if isfield(s.pert, 'attBias') && any(s.pert.attBias)
+                dq = [1; 0.5*s.pert.attBias(:)];
+                dq = dq/norm(dq);
+                xCtrl(7:10) = uav.plant.qmul(dq, x(7:10));
+            end
+        end
         if useBrake
-            [cmd, st] = uav.ctrl.tilt_brake(x, rNow, st, p, c, s.dt*s.ctrlDiv);
+            [cmd, st] = uav.ctrl.tilt_brake(xCtrl, rNow, st, p, c, s.dt*s.ctrlDiv);
         else
             % faultAware=false 时控制器不知道故障（旧行为），用于对照实验
             if isfield(s, 'faultAware') && ~s.faultAware
@@ -123,7 +138,7 @@ for kk = 1:N
                 end
             end
             if isfield(s, 'alloc'), mAlloc = s.alloc; else, mAlloc = 'pinv'; end
-            [cmd, st] = uav.ctrl.tilt_cascade(x, rNow, st, p, c, s.dt*s.ctrlDiv, actC, mAlloc);
+            [cmd, st] = uav.ctrl.tilt_cascade(xCtrl, rNow, st, p, c, s.dt*s.ctrlDiv, actC, mAlloc);
         end
         cmd = cmd(:);
         % 差动短舱偏航微调（REPORT_r11）：四台短舱角不再完全一致，

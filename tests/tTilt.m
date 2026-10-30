@@ -461,6 +461,46 @@ classdef tTilt < matlab.unittest.TestCase
             testCase.verifyLessThan(pitch1, 0.7*pitch0);
         end
 
+        function ctrlToleratesOneDegreeAttitudeBias(testCase)
+            % r19：悬停漂移约 0.22 m/度。1° 姿态估计偏置 + 20 cm 位置噪声
+            % 合起来必须留在 5 cm 验收线的同一量级（实测 0.21 m，见
+            % research/REPORT_r19_ctrl_sensitivity.md）。
+            p = testCase.p; c = testCase.c;
+            s = testCase.s; s.tEnd = 30; s.logDiv = 20; s.useEso = false;
+            ref = @(t) struct('p', [0;0;-20], 'v', zeros(3,1), 'a', zeros(3,1), ...
+                              'psi', 0, 'h', 20, 'V', 0);
+            s.pert = struct('attBias', [1; 0.5; 0]*pi/180, ...
+                            'posNoise', 0.20, 'posBias', zeros(3,1));
+            out = uav.sim.run_tilt(p, c, s, ref);
+            tail = out.t > 20;
+            drift = max(vecnorm(out.p(tail,1:2), 2, 2));
+            testCase.verifyLessThan(drift, 0.35);
+        end
+
+        function ctrlBiasBeatsPositionNoiseInHover(testCase)
+            % 同一量级的姿态偏置与位置噪声，前者影响必须更大：
+            % 1° → 0.216 m，20 cm 位置白噪 → 0.022 m（r19 表 1）。
+            p = testCase.p; c = testCase.c;
+            ref = @(t) struct('p', [0;0;-20], 'v', zeros(3,1), 'a', zeros(3,1), ...
+                              'psi', 0, 'h', 20, 'V', 0);
+            base = testCase.s; base.tEnd = 30; base.logDiv = 20; base.useEso = false;
+
+            sA = base;
+            sA.pert = struct('attBias', [1; 0.5; 0]*pi/180, ...
+                             'posNoise', 0, 'posBias', zeros(3,1));
+            outA = uav.sim.run_tilt(p, c, sA, ref);
+
+            sB = base;
+            sB.pert = struct('attBias', zeros(3,1), ...
+                             'posNoise', 0.20, 'posBias', zeros(3,1));
+            outB = uav.sim.run_tilt(p, c, sB, ref);
+
+            tailA = outA.t > 20; tailB = outB.t > 20;
+            eA = max(vecnorm(outA.p(tailA,1:2), 2, 2));
+            eB = max(vecnorm(outB.p(tailB,1:2), 2, 2));
+            testCase.verifyGreaterThan(eA, 3*eB);
+        end
+
         function repeatedRunIsIdentical(testCase)
             p = testCase.p; c = testCase.c; s = testCase.s;
             s.tEnd = 5; s.logDiv = 100;

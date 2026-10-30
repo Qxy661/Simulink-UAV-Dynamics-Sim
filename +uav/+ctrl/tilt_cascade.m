@@ -44,10 +44,11 @@ qbar  = 0.5*p.rho*V^2;
 % 短舱会提前收回、迎角突然变大，这是 r5 里峰值 23.8 m 的来源；纯实测又会
 % 收得太晚。加 2 m/s 的领先帽，等价于「转捩走廊是真实速度的函数，
 % 但允许最多 2 m/s 的超前」，细节见 research/REPORT_r3_decel.md。
+Vnow = norm(x(4:6));
 if isfield(c, 'kSched') && strcmp(c.kSched, 'ref')
     Vk = ref.V;
 else
-    Vk = min(V, ref.V + 2.0);
+    Vk = min(Vnow, ref.V + 2.0);
 end
 k = (Vk - p.V1) / (p.V2 - p.V1);
 k = max(0, min(1, k));
