@@ -35,7 +35,7 @@ rLog = zeros(nLog, 6);
 
 x   = x0(:);
 cmd = [p.hoverW*ones(4,1); 0; 0; 0; p.betaMin];
-st  = struct('ip', zeros(3,1), 'ia', zeros(3,1));
+st  = struct('ip', zeros(3,1), 'ia', zeros(3,1), 'iH', 0);
 
 j = 0;
 for kk = 1:N

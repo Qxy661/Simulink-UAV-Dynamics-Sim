@@ -98,8 +98,10 @@ thetaQ = -asin(max(-1, min(1, Rdq(3,1))));
 
 % 固定翼支：配平迎角 + 高度与空速反馈
 eH  = ref.h - h;
+st.iH = st.iH + eH*dt;
+st.iH = max(-c.iHmax, min(c.iHmax, st.iH));
 
-thetaF = alphaT + c.Kth_h*eH - c.Kth_hd*hdot + c.KthV*(V - ref.V);
+thetaF = alphaT + c.Kth_h*eH + c.Kth_hi*st.iH - c.Kth_hd*hdot + c.KthV*(V - ref.V);
 thetaF = max(-c.thMax, min(c.thMax, thetaF));
 phiF   = c.Kphi_psi * uav.ctrl.wrap_pi(ref.psi - psi);
 phiF   = max(-c.phiMax, min(c.phiMax, phiF));
@@ -112,8 +114,22 @@ psiD   = ref.psi;
 eAtt = uav.ctrl.wrap_pi([phiD; thetaD; psiD] - att);
 st.ia = st.ia + eAtt*dt;
 st.ia = max(-c.iMaxAtt, min(c.iMaxAtt, st.ia));
-M = c.KpAtt.*eAtt + c.KiAtt.*st.ia - c.KdAtt.*w;
-M = max(-c.maxM, min(c.maxM, M));
+Mraw = c.KpAtt.*eAtt + c.KiAtt.*st.ia - c.KdAtt.*w;
+
+% 舵面支的力矩增益要随动压放大：力矩到舵偏是 de = M/(qbar*S*c*Cmde)，
+% 动压从 20 Pa 涨到 120 Pa 时同一个 M 只能给出 1/6 的舵偏。不补这一项，
+% 巡航段 30° 的俯仰误差只换来 2° 舵偏，机体一路抬头爬高。
+wRot0 = max(0, 1 - k);
+gb    = max(1, max(qbarS, 1.0)/c.qAttRef);
+M     = wRot0*Mraw + (1 - wRot0)*gb*Mraw;
+
+% 力矩预算随权限走：悬停时惯量小，几 N·m 就够；巡航动压上来后舵面能给出
+% 几十 N·m，若仍按悬停的 maxM 截断，俯仰指令同样会被压住。
+MfLim = [qbarS*p.S*p.b*p.Clda*p.daMax;
+         qbarS*p.S*p.c*abs(p.Cmde)*p.deMax;
+         qbarS*p.S*p.b*p.Cndr*p.drMax];
+Mlim  = wRot0*c.maxM + (1 - wRot0)*MfLim;
+M = max(-Mlim, min(Mlim, M));
 
 % ---- 分配：旋翼份额与舵面份额 ----
 sb = sin(beta);

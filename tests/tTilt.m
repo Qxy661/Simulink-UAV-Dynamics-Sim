@@ -106,7 +106,10 @@ classdef tTilt < matlab.unittest.TestCase
             s.tEnd = 45; s.logDiv = 50;
             out = uav.sim.run_tilt(p, c, s, @uav.env.tilt_ref);
             h = -out.p(:,3);
-            testCase.verifyLessThan(max(abs(h - p.htrim)), 1.0);
+            % 加速段（5–20 s）会先爬 4 m 再被高度积分拉回，末段才是稳态指标
+            tail = out.t > 35;
+            testCase.verifyLessThan(max(abs(h - p.htrim)), 5.0);
+            testCase.verifyLessThan(max(abs(h(tail) - p.htrim)), 0.5);
         end
 
         function missionReachesCruiseTilt(testCase)
@@ -115,8 +118,8 @@ classdef tTilt < matlab.unittest.TestCase
             out = uav.sim.run_tilt(p, c, s, @uav.env.tilt_ref);
             V  = vecnorm(out.v, 2, 2);
             bt = 180/pi*out.beta;
-            testCase.verifyGreaterThan(max(bt), 50);
-            testCase.verifyGreaterThan(V(end), 9.5);
+            testCase.verifyGreaterThan(max(bt), 85);
+            testCase.verifyGreaterThan(V(end), 21);
             testCase.verifyLessThan(abs(180/pi*max(out.eul(:,2))), 20);
         end
 

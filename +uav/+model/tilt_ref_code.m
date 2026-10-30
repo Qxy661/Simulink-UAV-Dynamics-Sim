@@ -3,7 +3,7 @@ function code = tilt_ref_code()
 %   与 uav.env.tilt_ref 同一套解析式，参数写成字面量。
 %   输出 12 维：[p(3); v(3); a(3); psi; h; V]。
 
-Vmax = 10.0;
+Vmax = 22.0;
 Ta   = 15.0;
 t1   = 5.0;
 t2   = t1 + Ta;

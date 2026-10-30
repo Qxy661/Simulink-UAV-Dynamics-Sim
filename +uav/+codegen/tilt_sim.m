@@ -23,7 +23,7 @@ X   = zeros(nLog, 21);
 x   = [0; 0; -h0; 0; 0; 0; 1; 0; 0; 0; 0; 0; 0; ...
        p.betaMin; p.hoverW; p.hoverW; p.hoverW; p.hoverW; 0; 0; 0];
 cmd = [p.hoverW; p.hoverW; p.hoverW; p.hoverW; 0; 0; 0; p.betaMin];
-st  = struct('ip', zeros(3, 1), 'ia', zeros(3, 1));
+st  = struct('ip', zeros(3, 1), 'ia', zeros(3, 1), 'iH', 0);
 j   = 0;
 
 for k = 1:nStep

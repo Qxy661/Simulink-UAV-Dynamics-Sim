@@ -2,7 +2,7 @@
  * File: rt_nonfinite.c
  *
  * MATLAB Coder version            : 24.1
- * C/C++ source code generated on  : 2026-10-29 21:15:09
+ * C/C++ source code generated on  : 2026-10-30 21:47:46
  */
 
 /*

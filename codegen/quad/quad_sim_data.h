@@ -2,7 +2,7 @@
  * File: quad_sim_data.h
  *
  * MATLAB Coder version            : 24.1
- * C/C++ source code generated on  : 2026-10-29 21:14:54
+ * C/C++ source code generated on  : 2026-10-30 21:47:26
  */
 
 #ifndef QUAD_SIM_DATA_H

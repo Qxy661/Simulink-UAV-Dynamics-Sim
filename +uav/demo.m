@@ -175,7 +175,7 @@ end
 f = figure('Color', 'w', 'Position', [100 100 900 640]);
 
 subplot(2,2,1);
-plot(out.t, h - p.htrim, 'b'); grid on; ylim([-1 1]);
+plot(out.t, h - p.htrim, 'b'); grid on; ylim([-1 5]);
 yline(0, 'r--');
 xlabel('t (s)'); ylabel('高度偏差 (m)'); title('高度保持');
 

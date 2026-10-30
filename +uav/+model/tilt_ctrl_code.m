@@ -6,9 +6,9 @@ function code = tilt_ctrl_code(p, c)
 L = { ...
     'function cmd = tiltctrl(x, r)'
     '% 倾转四旋翼级联控制：位置环 -> 姿态混合 -> 权限分配'};
-L{end+1} = 'persistent ip ia';
+L{end+1} = 'persistent ip ia iH';
 L{end+1} = 'if isempty(ip)';
-L{end+1} = '    ip = zeros(3,1); ia = zeros(3,1);';
+L{end+1} = '    ip = zeros(3,1); ia = zeros(3,1); iH = 0;';
 L{end+1} = 'end';
 L{end+1} = 'dt = 0.001;';
 L{end+1} = 'Vb = x(4:6);';
@@ -87,8 +87,12 @@ L{end+1} = 'phiQ = atan2(Rdq(3,2), Rdq(3,3));';
 L{end+1} = 'thetaQ = -asin(min(max(Rdq(3,1), -1), 1));';
 
 L{end+1} = 'eH = r(11) - h;';
-L{end+1} = sprintf('thetaF = alphaT + %s*eH - %s*hdot + %s*(V - r(12));', ...
-    uav.model.fmt(c.Kth_h), uav.model.fmt(c.Kth_hd), uav.model.fmt(c.KthV));
+L{end+1} = 'iH = iH + eH*dt;';
+L{end+1} = sprintf('iH = min(max(iH, -%s), %s);', ...
+    uav.model.fmt(c.iHmax), uav.model.fmt(c.iHmax));
+L{end+1} = sprintf('thetaF = alphaT + %s*eH + %s*iH - %s*hdot + %s*(V - r(12));', ...
+    uav.model.fmt(c.Kth_h), uav.model.fmt(c.Kth_hi), ...
+    uav.model.fmt(c.Kth_hd), uav.model.fmt(c.KthV));
 L{end+1} = sprintf('thetaF = min(max(thetaF, -%s), %s);', ...
     uav.model.fmt(c.thMax), uav.model.fmt(c.thMax));
 L{end+1} = sprintf('ePsi = mod(r(10) - psi + pi, 2*pi) - pi;');
@@ -105,10 +109,17 @@ L{end+1} = 'eAtt = mod([phiD; thetaD; psiD] - att + pi, 2*pi) - pi;';
 L{end+1} = 'ia = ia + eAtt*dt;';
 L{end+1} = sprintf('ia = min(max(ia, -%s), %s);', ...
     uav.model.fmtv(c.iMaxAtt), uav.model.fmtv(c.iMaxAtt));
-L{end+1} = sprintf('M = %s.*eAtt + %s.*ia - %s.*w;', ...
+L{end+1} = sprintf('Mraw = %s.*eAtt + %s.*ia - %s.*w;', ...
     uav.model.fmtv(c.KpAtt), uav.model.fmtv(c.KiAtt), uav.model.fmtv(c.KdAtt));
-L{end+1} = sprintf('M = min(max(M, -%s), %s);', ...
-    uav.model.fmtv(c.maxM), uav.model.fmtv(c.maxM));
+L{end+1} = 'wRot0 = max(0, 1 - k);';
+L{end+1} = sprintf('gb = max(1, max(qbar, 1.0)/%s);', uav.model.fmt(c.qAttRef));
+L{end+1} = 'M = wRot0*Mraw + (1 - wRot0)*gb*Mraw;';
+L{end+1} = sprintf('MfLim = [qbar*%s*%s*%s*%s; qbar*%s*%s*%s*%s; qbar*%s*%s*%s*%s];', ...
+    uav.model.fmt(p.S), uav.model.fmt(p.b), uav.model.fmt(p.Clda), uav.model.fmt(p.daMax), ...
+    uav.model.fmt(p.S), uav.model.fmt(p.c), uav.model.fmt(abs(p.Cmde)), uav.model.fmt(p.deMax), ...
+    uav.model.fmt(p.S), uav.model.fmt(p.b), uav.model.fmt(p.Cndr), uav.model.fmt(p.drMax));
+L{end+1} = sprintf('Mlim = wRot0*%s + (1 - wRot0)*MfLim;', uav.model.fmtv(c.maxM));
+L{end+1} = 'M = min(max(M, -Mlim), Mlim);';
 
 % 分配
 L{end+1} = 'sb = sin(beta); cb = cos(beta);';

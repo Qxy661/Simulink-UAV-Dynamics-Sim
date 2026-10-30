@@ -14,7 +14,7 @@ function r = tilt_ref(t)
 %   返回 struct：p（NED 位置）、v、a、psi、h、V。
 %   加速度用余弦包络的一阶导数，速度与位置用其解析积分，避免数值积分误差。
 
-Vmax = 10.0;                    % m/s，稳定转捩走廊上界（见 docs/tiltrotor.md）
+Vmax = 22.0;                    % m/s，巡航速度；β 到 90°（见 docs/tiltrotor.md）
 Vmin = 4.0;                     % m/s，减速后保留的低速巡航
 Ta   = 15.0;                    % s，加/减速时长
 t1   = 5.0;                     % 加速开始

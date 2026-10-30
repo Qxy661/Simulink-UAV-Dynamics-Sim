@@ -2,7 +2,7 @@
  * File: quad_sim.c
  *
  * MATLAB Coder version            : 24.1
- * C/C++ source code generated on  : 2026-10-29 21:14:54
+ * C/C++ source code generated on  : 2026-10-30 21:47:26
  */
 
 /* Include Files */
@@ -50,8 +50,9 @@ static void deriv(const double x[13], const double w[4], double xd[13])
   double t;
   double y_tmp;
   int i;
-  /* QUAD_WRENCH  旋翼转速到机体力/力矩。 */
-  /*    旋翼推力沿机体 -z，阻力取线性近似（仅低速段有效）。 */
+  /* QUAD_WRENCH  旋翼转速到机体力/力矩，含风。 */
+  /*    旋翼推力沿机体 -z。阻力取线性近似（仅低速段有效），作用在相对 */
+  /*    气流速度上：Vrel = Vb - Wb，Wb 为机体坐标系风速，省略时为零。 */
   /*    w 为 4x1 转速 rad/s。 */
   r = _mm_loadu_pd(&w[0]);
   r1 = _mm_set1_pd(1.5E-5);
