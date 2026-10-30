@@ -5,6 +5,7 @@ function out = demo(caseName)
 %   uav.demo('yaw')     四旋翼航向阶跃
 %   uav.demo('fw')      固定翼爬升-转弯-加速任务
 %   uav.demo('tilt')    倾转四旋翼悬停-转捩-巡航
+%   uav.demo('wind')    阵风下的 PID 与 ESO 对比
 
 if nargin < 1
     caseName = 'step';
@@ -17,6 +18,11 @@ end
 
 if strcmpi(caseName, 'tilt')
     out = tilt_demo();
+    return
+end
+
+if strcmpi(caseName, 'wind')
+    out = wind_demo();
     return
 end
 
@@ -193,4 +199,68 @@ title('旋翼转速');
 
 saveas(f, fullfile(figDir, 'demo_tilt.png'));
 fprintf('图已保存 %s\n', fullfile(figDir, 'demo_tilt.png'));
+end
+
+function out = wind_demo()
+p = uav.cfg.quad();
+c = uav.cfg.ctrl();
+s = uav.cfg.simcfg();
+s.tEnd = 40;
+s.ctrlDiv = 1;
+s.logDiv = 10;
+ref  = uav.env.hover(0, 0, -5, 0);
+gust = uav.env.wind_dryden(s.tEnd, s.dt, 10, 2.0, 11, [3; 2; 0]);
+
+s1 = s; s1.useEso = false;
+o1 = uav.sim.run_wind(p, c, s1, ref, gust);
+s2 = s; s2.useEso = true;
+o2 = uav.sim.run_wind(p, c, s2, ref, gust);
+
+e1 = vecnorm(o1.p(:, 1:2) - o1.ref(:, 1:2), 2, 2);
+e2 = vecnorm(o2.p(:, 1:2) - o2.ref(:, 1:2), 2, 2);
+tail = o1.t > 15;
+fprintf('\n== wind ==\n');
+fprintf('平均风 [3 2 0] m/s，湍流 2 m/s\n');
+fprintf('PID     水平 RMS %.3f m，最大 %.3f m\n', sqrt(mean(e1(tail).^2)), max(e1(tail)));
+fprintf('PID+ESO 水平 RMS %.3f m，最大 %.3f m\n', sqrt(mean(e2(tail).^2)), max(e2(tail)));
+fprintf('ESO 扰动估计 dHat 稳态 [%.3f %.3f %.3f] m/s^2\n', mean(o2.dHat(tail, :), 1));
+
+root = fileparts(fileparts(mfilename('fullpath')));
+figDir = fullfile(root, 'figures');
+if ~isfolder(figDir)
+    mkdir(figDir);
+end
+
+f = figure('Color', 'w', 'Position', [100 100 900 640]);
+
+subplot(2,2,1);
+plot(o1.p(:,2), o1.p(:,1), 'b', 'LineWidth', 1.2); hold on
+plot(o2.p(:,2), o2.p(:,1), 'r', 'LineWidth', 1.2);
+plot(0, 0, 'ks', 'MarkerFaceColor', 'k', 'MarkerSize', 6);
+grid on; axis equal
+xlabel('East (m)'); ylabel('North (m)');
+title('悬停轨迹（俯视）');
+legend('PID', 'PID+ESO', '参考点', 'Location', 'best');
+
+subplot(2,2,2);
+plot(o1.t, e1, 'b', o2.t, e2, 'r');
+grid on; xlabel('t (s)'); ylabel('水平误差 (m)'); title('水平误差');
+legend('PID', 'PID+ESO', 'Location', 'best');
+
+subplot(2,2,3);
+dTrue = p.drag * gust.Wmean / p.mass;
+plot(o2.t, o2.dHat(:,1), 'b', o2.t, o2.dHat(:,2), 'r'); hold on
+yline(dTrue(1), 'b--'); yline(dTrue(2), 'r--');
+grid on; xlabel('t (s)'); ylabel('扰动加速度 (m/s^2)');
+legend('dHat 北向', 'dHat 东向', '真值 北向', '真值 东向', 'Location', 'best');
+title('ESO 扰动估计');
+
+subplot(2,2,4);
+plot(o1.t, rad2deg(o1.eul(:,1)), 'b', o2.t, rad2deg(o2.eul(:,1)), 'r');
+grid on; xlabel('t (s)'); ylabel('\phi (deg)');
+legend('PID', 'PID+ESO', 'Location', 'best'); title('滚转角');
+
+saveas(f, fullfile(figDir, 'demo_wind.png'));
+fprintf('图已保存 %s\n', fullfile(figDir, 'demo_wind.png'));
+out = o2;
 end

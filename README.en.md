@@ -22,13 +22,15 @@ Closed-loop simulation of a quadrotor, a fixed-wing aircraft and a tilt-rotor, i
 
 | Item | Result |
 | --- | --- |
-| Unit and closed-loop tests | 49 passing |
+| Unit and closed-loop tests | 66 passing |
 | Quadrotor position step | 0.003 m final error, 30.5° peak tilt |
 | Fixed-wing mission | climb 30 m, turn 60°, accelerate to 22 m/s; final 130.01 m, 60.0°, 22.02 m/s |
 | Tilt-rotor transition | β 0→57.3°, airspeed 0→9.99 m/s, altitude error 0.33 m, final horizontal error 1.08 m |
 | Simulink cross-check | 1.1e-15 (quad, 14 s), 1.3e-12 (fixed wing, 60 s), 6.65e-12 (tilt rotor, 45 s, all 21 states) |
 | Generated C | 5.9e-14 / 9.1e-13 / 8.4e-12 against the MATLAB trajectories |
 | Controller benchmark | PID 4.19 s / LQR 4.47 s / MPC 5.99 s to within 5 cm; 35 % thrust loss recovers to < 1 cm |
+| State estimation | 15-state EKF on IMU/GPS/baro/mag/optical flow, 7.9 cm hover RMS over 60 s, 0.09 m drift after 30 s GPS loss |
+| Wind rejection | Dryden turbulence 2 m/s plus mean wind [3;2;0] m/s: PID 0.145 m → ESO 0.006 m |
 | Tutorials | 61 chapters in 11 parts, Chinese, in [tutorials/](tutorials/README.md) |
 
 ## Quick start
@@ -45,7 +47,8 @@ uav.demo('hover');
 uav.demo('yaw');
 uav.demo('fw');            % fixed wing: climb, turn, accelerate
 uav.demo('tilt');          % tilt rotor: hover, nacelle tilt, cruise
-runtests('tests')          % 49 tests, about 40 s
+uav.demo('wind');          % PID vs ESO under gusts
+runtests('tests')          % 66 tests, about 60 s
 ```
 
 Everything at once — tests, three model cross-checks, C runner cross-check:

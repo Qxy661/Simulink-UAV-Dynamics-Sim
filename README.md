@@ -23,7 +23,7 @@
 
 | 项目 | 结果 |
 | --- | --- |
-| 单元与闭环测试 | 57 项全部通过 |
+| 单元与闭环测试 | 66 项全部通过 |
 | 四旋翼位置阶跃 | 末端误差 0.003 m，最大倾角 30.5° |
 | 固定翼任务 | 爬升 30 m、转弯 60°、加速到 22 m/s，终点高度 130.01 m、航向 60.0°、空速 22.02 m/s |
 | 倾转四旋翼过渡 | β 0→57.3°、空速 0→9.99 m/s，高度偏差 0.33 m，水平误差末段 1.08 m |
@@ -31,6 +31,7 @@
 | C 代码生成 | 三个构型生成 C，gcc 编译后同一任务与脚本差 5.9e-14 / 9.1e-13 / 8.4e-12 |
 | 控制器基准 | PID 4.19 s / LQR 4.47 s / MPC 5.99 s 调节到 5 cm；35% 降效恢复误差 < 1 cm，见 [docs/benchmark.md](docs/benchmark.md) |
 | 状态估计闭环 | IMU/GPS/气压/磁/光流 + 15 维 EKF，60 s 悬停 RMS 7.9 cm；丢星 30 s 漂移 0.09 m，见 [docs/estimation.md](docs/estimation.md) |
+| 阵风抑制 | Dryden 紊流 2 m/s + 平均风 [3;2;0] m/s：PID 0.145 m → ESO 0.006 m（24 倍），见 [docs/disturbance.md](docs/disturbance.md) |
 | 理论教程 | 11 个部分、61 篇，见 [tutorials/](tutorials/README.md) |
 | Simulink 版本 | R2024a，只用基础模块与 MATLAB Function |
 
@@ -48,7 +49,8 @@ uav.demo('hover');         % 定点悬停
 uav.demo('yaw');           % 航向阶跃
 uav.demo('fw');            % 固定翼：爬升 30 m、转弯 60°、加速到 22 m/s
 uav.demo('tilt');          % 倾转四旋翼：悬停、短舱前倾、巡航
-runtests('tests')          % 49 项，约 40 s
+uav.demo('wind');          % 阵风下 PID 与 ESO 对比
+runtests('tests')          % 66 项，约 60 s
 ```
 
 一条命令跑完全部检查（测试、三个模型对拍、C 运行器对拍）：

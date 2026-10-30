@@ -210,12 +210,23 @@ Step/Psi -> RefMux -> Ctrl -> TM -> Mixer -> Motors -> Wrench
 | `+uav/+est/ekf_update_accel.m` | 加计姿态更新，双重门控 |
 | `+uav/+est/ekf_update_flow.m` | 光流机体系速度更新 |
 | `+uav/+sim/run_est.m` | 带传感器的闭环仿真（1 kHz 控制） |
+| `+uav/+env/wind_dryden.m` | Dryden 紊流：三轴 AR(1) + 平均风 |
+| `+uav/+ctrl/eso_init.m` | 三轴三阶 ESO 初始化 |
+| `+uav/+ctrl/eso_step.m` | ESO 一步更新，返回扰动加速度估计 |
+| `+uav/+sim/run_wind.m` | 带风与 ESO 的闭环仿真 |
 
 ## 状态估计
 
 `+uav/+sens/` 造传感器量测，`+uav/+est/` 做 15 维误差状态 EKF，`+uav/+sim/run_est.m` 把两者接进闭环。误差状态顺序 `[δp; δv; δθ; δbg; δba]`，姿态四元数单独维护；量测有 GPS 位置、GPS 地速、气压高度、三轴磁向量、带门控的加计姿态、光流机体系速度。
 
 控制器只吃 `[p̂; v̂; q̂; ω − b̂g]`，与真值闭环共用同一个 `uav.ctrl.cascade`。控制周期取 1 kHz（`ctrlDiv = 1`）：100 Hz 下估计滞后 5–10 ms 就足以让姿态环失稳。细节与实测精度见 [estimation.md](estimation.md)。
+
+## 阵风与扰动观测
+
+`+uav/+env/wind_dryden.m` 生成三轴 Dryden 紊流（`L = [200;200;50] m`，按空速做 AR(1)），`quad_wrench` 的阻力项改成相对风速 `Vb − Wb`。`+uav/+ctrl/eso_step.m` 是每轴三阶线性 ESO，状态 `[z1 z2 z3]` 分别逼近位置、速度、未建模加速度；`run_wind` 把 `rNow.a − dHat` 传给级联控制器，控制器本体一行没改。
+
+这一层只在脚本侧，Simulink 模型与生成的 C 不含 ESO——它的增益要跟量测噪声一起标定，跨构型复用的意义不大。细节与对比见 [disturbance.md](disturbance.md)。
+
 ## C 代码生成
 
 `+uav/+codegen/quad_sim.m` 是四旋翼闭环主循环的代码生成入口，逻辑与 `uav.sim.run` 逐行对应，只把参考、控制器状态、参数都收成固定尺寸的局部量。`scripts/codegen_quad.m` 调 `codegen -config:lib -GenCodeOnly`，输出到 `codegen/`；`c/main.c` 链接这些文件构成独立运行器，`c/Makefile` 用 gcc 构建。

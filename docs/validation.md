@@ -4,7 +4,7 @@
 
 ```matlab
 addpath('/path/to/drone-simulink');
-runtests('tests')            % 57 项，约 75 s
+runtests('tests')            % 66 项，约 85 s
 cd scripts
 build_quad_model
 validate_model
@@ -20,7 +20,7 @@ uav.demo('tilt')
 
 ## 测试清单
 
-`runtests('tests')` 共 57 项：`tPlant` 13 项、`tController` 7 项、`tClosedLoop` 5 项、`tFixedWing` 13 项、`tTilt` 11 项、`tEstimation` 8 项。全部通过。
+`runtests('tests')` 共 66 项：`tPlant` 13 项、`tController` 7 项、`tClosedLoop` 5 项、`tFixedWing` 13 项、`tTilt` 11 项、`tEstimation` 8 项、`tDisturbance` 9 项。全部通过。
 
 ### tPlant（13，四旋翼）
 
@@ -206,6 +206,21 @@ hover 的 3 cm 误差来自 1 m 高度爬升后的稳态偏差，垂向积分项
 判据 1e-6。C 侧与 MATLAB 侧用的是同一份生成的 C 代码，差别只来自 gcc 的 libm 与 MATLAB 对 `exp`/`sin`/`atan2` 的末位不同；积分越长放大越多（14 s 到 1e-14，60 s 到 1e-12，倾转 45 s 到 1e-11，因为 21 维里有转速环）。
 
 CI 不需要 MATLAB：`.github/workflows/ci.yml` 按构型矩阵用 gcc 编译、跑运行器，再拿 `c/ref/{quad_step_ref,fw_mission_ref,tilt_mission_ref}.csv`（MATLAB 侧生成、入库）比对，容差 1e-9。
+
+## 阵风与 ESO
+
+40 s 悬停，平均风 [3;2;0] m/s、Dryden 湍流 2 m/s，同一随机种子：
+
+| 控制器 | 水平 RMS m | 最大误差 m | 最大倾角 ° |
+| --- | --- | --- | --- |
+| PID 级联 | 0.145 | 0.190 | 1.9 |
+| PID + 位置积分 | 0.078 | 0.125 | 1.9 |
+| PID + ESO | 0.006 | 0.012 | 1.9 |
+| PID + ESO，5 cm 量测噪声 | 0.011 | 0.022 | 10.7 |
+
+ESO 的扰动估计 `z3` 稳态 [0.203 0.095 −0.019] m/s²，真值 `drag*W/m` 是 [0.160 0.107 0]。北向偏高 27%，因为机体为了抗风本身在倾斜，倾角带进来一个稳态分量；东向与真值基本重合。量测噪声下倾角从 1.9° 涨到 10.7°，是这套观测器在低成本 IMU 上的主要代价。
+
+详细推导与复现命令见 [disturbance.md](disturbance.md)。
 
 ## 控制器基准与失效
 `scripts/benchmark_controllers.m` 在 3.6 m 阶跃上跑三种控制器，14 s，采样 10 ms。
