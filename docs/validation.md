@@ -4,7 +4,7 @@
 
 ```matlab
 addpath('/path/to/drone-simulink');
-runtests('tests')            % 91 项，约 68 s
+runtests('tests')            % 92 项，约 68 s
 cd scripts
 build_quad_model
 validate_model
@@ -20,7 +20,7 @@ uav.demo('tilt')
 
 ## 测试清单
 
-`runtests('tests')` 共 91 项：`tPlant` 13 项、`tController` 7 项、`tClosedLoop` 5 项、`tFixedWing` 13 项、`tTilt` 35 项、`tEstimation` 9 项、`tDisturbance` 9 项。全部通过。
+`runtests('tests')` 共 92 项：`tPlant` 13 项、`tController` 7 项、`tClosedLoop` 5 项、`tFixedWing` 13 项、`tTilt` 36 项、`tEstimation` 9 项、`tDisturbance` 9 项。全部通过。
 
 ### tPlant（13，四旋翼）
 

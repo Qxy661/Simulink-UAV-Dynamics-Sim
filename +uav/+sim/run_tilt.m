@@ -35,6 +35,9 @@ cLog = zeros(nLog, 8);
 rLog = zeros(nLog, 6);
 
 x   = x0(:);
+% 检测事件（r21）：无论是否开 logFault 都记下来，用来统计阵风下的误报。
+tDetLog = [];
+iDetLog = [];
 % 姿态量测延迟（r20）：控制器看到的四元数滞后 attDelay 个控制拍。
 % 估计器的相位滞后比精度更致命（四旋翼 r13 的极限环就是这么来的），
 % 这里用纯延迟扫出"能忍多少毫秒"。
@@ -184,6 +187,10 @@ for kk = 1:N
         end
         if isfield(s, 'detect') && s.detect
             [det, newIdx] = uav.est.rotor_fault_detect(cmd(1:4), x(15:18), det);
+            if ~isempty(newIdx)
+                tDetLog(end+1, 1) = t; %#ok<AGROW>
+                iDetLog(end+1, 1) = newIdx(1); %#ok<AGROW>
+            end
             if ~isempty(newIdx) && isfield(s, 'logFault') && s.logFault
                 fprintf('  [detect] t=%.3f s 判定电机 %s 失效\n', t, mat2str(newIdx'));
             end
@@ -231,6 +238,7 @@ out.cmd  = cLog(1:j, :);
 out.ref  = rLog(1:j, :);
 out.beta = xLog(1:j, 14);
 out.om   = xLog(1:j, 15:18);
+out.det  = struct('t', tDetLog, 'idx', iDetLog);
 out.prm  = p;
 end
 
