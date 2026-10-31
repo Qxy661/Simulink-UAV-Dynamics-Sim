@@ -520,6 +520,16 @@ classdef tTilt < matlab.unittest.TestCase
             testCase.verifyLessThan(drift, 0.35);
         end
 
+        function noFalseAlarmDuringTransition(testCase)
+            % r22：转捩段 4 m/s 风下，转速指令从 500 拉到 1100，旧阈值
+            % （60 rad/s / 3 拍）会误判 2 台，把任务打瘸。新阈值 200/30 应零事件。
+            p = testCase.p; c = testCase.c;
+            s = testCase.s; s.tEnd = 45; s.logDiv = 20;
+            s.detect = true; s.windFn = @(t) [4; 0; 0];
+            out = uav.sim.run_tilt(p, c, s, @uav.env.tilt_ref);
+            testCase.verifyEmpty(out.det.t);
+        end
+
         function noFalseAlarmUnderModerateWind(testCase)
             % r21：可控包线内（≤4 m/s）检测器不应误报。20 s 里 2 万拍，
             % 4 m/s 风下阈值 60 rad/s 仍有富余。见 REPORT_r21_false_alarm.md。

@@ -18,7 +18,7 @@ function [d, idx] = rotor_fault_detect(wCmd, wMeas, d)
 %   转速在真机上是标准配置（PX4 的 ESC telemetry）。
 
 if nargin < 3 || isempty(d)
-    d = struct('cnt', zeros(4,1), 'dead', false(4,1), 'th', 60, 'hold', 3);
+    d = struct('cnt', zeros(4,1), 'dead', false(4,1), 'th', 200, 'hold', 30);
 end
 
 r = abs(wCmd(:) - wMeas(:));

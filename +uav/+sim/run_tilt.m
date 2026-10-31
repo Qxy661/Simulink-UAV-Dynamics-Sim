@@ -50,7 +50,9 @@ if attDelay > 0
 end
 cmd = [p.hoverW*ones(4,1); 0; 0; 0; p.betaMin];
 st  = struct('ip', zeros(3,1), 'ia', zeros(3,1), 'iH', 0);
-det = struct('cnt', zeros(4,1), 'dead', false(4,1), 'th', 60, 'hold', 3);
+det = struct('cnt', zeros(4,1), 'dead', false(4,1), 'th', 200, 'hold', 30);
+if isfield(s, 'detTh'),   det.th   = s.detTh;   end
+if isfield(s, 'detHold'), det.hold = s.detHold; end
 
 % 扰动观测（r18，opt-in）：用位置量测驱动三轴 ESO，把估计出的扰动加速度
 % 从期望加速度里扣掉。悬停抗风靠它，而不是靠位置误差硬顶。
