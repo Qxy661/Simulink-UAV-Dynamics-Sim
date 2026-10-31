@@ -35,6 +35,16 @@ cLog = zeros(nLog, 8);
 rLog = zeros(nLog, 6);
 
 x   = x0(:);
+% 姿态量测延迟（r20）：控制器看到的四元数滞后 attDelay 个控制拍。
+% 估计器的相位滞后比精度更致命（四旋翼 r13 的极限环就是这么来的），
+% 这里用纯延迟扫出"能忍多少毫秒"。
+attDelay = 0;
+if isfield(s, 'pert') && isfield(s.pert, 'attDelayTicks')
+    attDelay = round(s.pert.attDelayTicks);
+end
+if attDelay > 0
+    qHist = repmat(x(7:10), 1, attDelay + 1);
+end
 cmd = [p.hoverW*ones(4,1); 0; 0; 0; p.betaMin];
 st  = struct('ip', zeros(3,1), 'ia', zeros(3,1), 'iH', 0);
 det = struct('cnt', zeros(4,1), 'dead', false(4,1), 'th', 60, 'hold', 3);
@@ -115,6 +125,10 @@ for kk = 1:N
                 dq = [1; 0.5*s.pert.attBias(:)];
                 dq = dq/norm(dq);
                 xCtrl(7:10) = uav.plant.qmul(dq, x(7:10));
+            end
+            if attDelay > 0
+                qHist = [x(7:10), qHist(:, 1:end-1)];
+                xCtrl(7:10) = qHist(:, end);
             end
         end
         if useBrake

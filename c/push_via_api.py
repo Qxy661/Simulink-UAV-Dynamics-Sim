@@ -91,6 +91,21 @@ def main():
         BASE = ref["object"]["sha"]
         print("base", BASE[:7])
 
+    # BASE 是远端提交，本地可能还没有（远端由 API 汇总推送时历史不同）。
+    # 没有就先 fetch 一次，后面的 ls-tree / git log 才有东西可比。
+    try:
+        sh("git", "cat-file", "-e", BASE)
+    except subprocess.CalledProcessError:
+        print("fetch base from origin ...")
+        url = f"https://{token()}@github.com/{REPO}.git"
+        sh("git", "-c", "credential.helper=", "-c", "http.proxy=",
+           "-c", "http.sslVerify=false", "fetch", url, "main")
+        try:
+            sh("git", "cat-file", "-e", BASE)
+        except subprocess.CalledProcessError:
+            BASE = sh("git", "rev-parse", "FETCH_HEAD")
+            print("base -> fetched", BASE[:7])
+
     if dry:
         diff = sh("git", "diff", "--name-status", BASE + "..HEAD")
         print(diff)

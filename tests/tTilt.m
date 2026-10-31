@@ -501,6 +501,25 @@ classdef tTilt < matlab.unittest.TestCase
             testCase.verifyGreaterThan(eA, 3*eB);
         end
 
+        function lagToleranceHoverIsThirtyMilliseconds(testCase)
+            % r20：姿态量测延迟 30 ms，悬停漂移只从 0.280 涨到 0.291 m。
+            % 这条测试把"倾转的姿态环不怕相位滞后"钉住，避免以后有人
+            % 把四旋翼那套 1 kHz 强制要求照搬过来。见 REPORT_r20_lag_budget.md。
+            p = testCase.p; c = testCase.c;
+            % 30 拍必须是 30 ms：默认 ctrlDiv=10 时一拍 10 ms，延迟会变成 300 ms
+            s = testCase.s; s.tEnd = 20; s.logDiv = 20; s.useEso = false; s.ctrlDiv = 1;
+            ref = @(t) struct('p', [0;0;-20], 'v', zeros(3,1), 'a', zeros(3,1), ...
+                              'psi', 0, 'h', 20, 'V', 0);
+            x0 = [2; 0; -20; 0; 0; 0; 1; 0; 0; 0; 0; 0; 0; ...
+                  p.betaMin; p.hoverW*ones(4,1); 0; 0; 0];
+            s.pert = struct('attDelayTicks', 30, 'attBias', zeros(3,1), ...
+                            'posNoise', 0, 'posBias', zeros(3,1));
+            out = uav.sim.run_tilt(p, c, s, ref, x0);
+            tail = out.t > 14;
+            drift = max(vecnorm(out.p(tail,1:2), 2, 2));
+            testCase.verifyLessThan(drift, 0.35);
+        end
+
         function repeatedRunIsIdentical(testCase)
             p = testCase.p; c = testCase.c; s = testCase.s;
             s.tEnd = 5; s.logDiv = 100;
